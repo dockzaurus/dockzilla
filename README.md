@@ -1,8 +1,8 @@
 # Dockzilla
 
-A self-hosted PaaS — think [Dokploy](https://dokploy.com), [Coolify](https://coolify.io), or [Zane-ops](https://zane.fyi), with the developer experience of Vercel/Heroku.
+A self-hosted PaaS — think [Dokploy](https://dokploy.com), [Coolify](https://coolify.io), or [Zane-ops](https://zaneops.dev/), with the developer experience of Vercel/Heroku.
 
-Point it at a git repo or a Docker image, and your app goes live on a domain with HTTPS — no SSH, no hand-written `docker run`. See [`ONBOARDING.md`](./ONBOARDING.md) for the full pitch, the concepts involved, and the v1 scope.
+Point it at a git repo or a Docker image, and your app goes live on a domain with HTTPS — no SSH, no hand-written `docker run`. See [`ONBOARDING.md`](https://github.com/dockzaurus/internal-shared-docs/blob/master/docs/ONBOARDING.MD) for the full pitch, the concepts involved, and the v1 scope.
 
 ## Stack
 
