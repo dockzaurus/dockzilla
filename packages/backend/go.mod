@@ -3,6 +3,7 @@ module dockzilla
 go 1.25.1
 
 require (
+	github.com/google/uuid v1.6.0
 	github.com/zixyos/glog v0.2.1
 	github.com/zixyos/goloader v0.3.1
 )

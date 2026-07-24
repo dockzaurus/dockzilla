@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"dockzilla/internal/core"
+	"dockzilla/internal/utils"
 
 	"github.com/zixyos/glog"
+	serviceloader "github.com/zixyos/goloader/service"
 )
 
 func main() {
@@ -26,4 +29,14 @@ func main() {
 		"version",
 		cfg.Service.Version,
 	)
+
+	app := core.NewApplication(
+		core.WithLogger(logger),
+	)
+
+	serviceloader.New(
+		serviceloader.WithLogger(logger),
+		serviceloader.WithService(app),
+		serviceloader.WithGenerator(utils.ServiceIDGenerator),
+	).Run(ctx)
 }

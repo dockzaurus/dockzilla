@@ -1,20 +1,15 @@
 package domain
 
-import "encoding/hex"
+import (
+	"context"
+)
 
+// UUID type represent the domain type for UUID.
 type UUID [16]byte
 
-func (u *UUID) String() string {
-	return hex.EncodeToString(u[:])
-}
-
-func (u *UUID) FromString(s string) error {
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-
-	copy(u[:], b)
-
-	return nil
+// Service type represent the service definitions.
+type Service interface {
+	Run(context.Context) error
+	Stop(ctx context.Context) error
+	Name() string
 }

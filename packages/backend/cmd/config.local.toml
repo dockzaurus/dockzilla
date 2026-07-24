@@ -1,5 +1,5 @@
 [service]
-name = "dockzilla"
+name = "dockzilla-back"
 version = "v1"
 
 [storage]
