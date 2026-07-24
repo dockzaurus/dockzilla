@@ -1,0 +1,31 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  GREETING: Hello, world!
+  BACKEND_DIR: packages/backend
+  BIN_DIR: bin
+  BIN_NAME: backend
+
+tasks:
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+
+  backend:dev:
+    desc: Run the backend locally (APP_ENV=local)
+    dir: '{{.BACKEND_DIR}}'
+    env:
+      APP_ENV: local
+    cmds:
+      - go run ./cmd
+
+  backend:build:
+    desc: Build the backend binary
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - mkdir -p ../../{{.BIN_DIR}}
+      - go build -o ../../{{.BIN_DIR}}/{{.BIN_NAME}} ./cmd

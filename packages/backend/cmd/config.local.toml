@@ -1,0 +1,13 @@
+[service]
+name = "dockzilla"
+version = "v1"
+
+[storage]
+    [storage.database]
+        url = ""
+    [storage.cache]
+        url = ""
+
+[http]
+host = "localhost"
+port = "8080"

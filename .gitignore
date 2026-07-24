@@ -1,0 +1,21 @@
+# Build artifacts
+/bin/
+*.exe
+*.test
+*.out
+
+# Go
+vendor/
+
+# Environment / secrets
+.env
+.env.*
+*.local.toml.bak
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
