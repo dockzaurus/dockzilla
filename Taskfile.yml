@@ -7,6 +7,7 @@ vars:
   BACKEND_DIR: packages/backend
   BIN_DIR: bin
   BIN_NAME: backend
+  FRONTEND_DIR: packages/frontend
 
 tasks:
   default:
@@ -29,3 +30,27 @@ tasks:
     cmds:
       - mkdir -p ../../{{.BIN_DIR}}
       - go build -o ../../{{.BIN_DIR}}/{{.BIN_NAME}} ./cmd
+
+  frontend:dev:
+    desc: Run the frontend dev server
+    dir: '{{.FRONTEND_DIR}}'
+    cmds:
+      - pnpm dev
+
+  frontend:build:
+    desc: Build the frontend for production
+    dir: '{{.FRONTEND_DIR}}'
+    cmds:
+      - pnpm build
+
+  dev:
+    desc: Run backend and frontend dev servers concurrently
+    deps:
+      - backend:dev
+      - frontend:dev
+
+  build:
+    desc: Build backend and frontend
+    deps:
+      - backend:build
+      - frontend:build

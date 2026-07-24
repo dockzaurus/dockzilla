@@ -7,6 +7,13 @@
 # Go
 vendor/
 
+# Node / frontend
+node_modules/
+dist/
+.tanstack/
+storybook-static/
+*.tsbuildinfo
+
 # Environment / secrets
 .env
 .env.*
