@@ -10,18 +10,26 @@ import (
 	"log/slog"
 
 	"dockzilla/pkg/domain"
+	"github.com/gin-gonic/gin"
 	ginihttp "github.com/zixyos/giniservice/http"
 )
 
 // Verify at compile time that a Server is a handler the application can run.
 var _ domain.Service = (*Server)(nil)
 
+// RouteRegistration mounts one feature's routes on the router it is handed. The
+// api package produces these, so the transport owns the mount point and the
+// middleware while each feature owns its own paths.
+type RouteRegistration func(router gin.IRouter)
+
 // Server adapts the giniservice HTTP server to the domain.Service contract.
 // The zero value is not usable; build one with NewServer.
 type Server struct {
-	logger *slog.Logger
-	srv    *ginihttp.Server
-	cfg    *ginihttp.Config
+	logger   *slog.Logger
+	srv      *ginihttp.Server
+	cfg      *ginihttp.Config
+	routes   []RouteRegistration
+	basePath string
 }
 
 // Option configures a Server during construction. It is an interface rather
@@ -52,6 +60,22 @@ func WithConfig(cfg *ginihttp.Config) Option {
 	})
 }
 
+// WithBasePath sets the prefix every registered route is mounted under, such as
+// "/v1". It is optional: routes are mounted at the root when it is not set.
+func WithBasePath(basePath string) Option {
+	return optionFunc(func(s *Server) {
+		s.basePath = basePath
+	})
+}
+
+// WithRoutes adds route registrations to be mounted under the base path. It can
+// be passed more than once; registrations accumulate.
+func WithRoutes(routes ...RouteRegistration) Option {
+	return optionFunc(func(s *Server) {
+		s.routes = append(s.routes, routes...)
+	})
+}
+
 // NewServer builds a Server from opts. It returns an error when a required
 // option is missing or when the underlying giniservice server cannot be
 // created, so a caller never receives a partially initialised Server.
@@ -75,6 +99,11 @@ func NewServer(opts ...Option) (*Server, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("http server: %w", err)
+	}
+
+	router := srv.Engine().Group(s.basePath)
+	for _, register := range s.routes {
+		register(router)
 	}
 
 	s.srv = srv
