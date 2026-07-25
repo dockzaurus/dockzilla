@@ -9,7 +9,10 @@ import (
 	"os"
 
 	"dockzilla/internal/core"
+	"dockzilla/internal/core/sample"
 	"dockzilla/internal/infra/transport/http"
+	"dockzilla/internal/infra/transport/http/api"
+	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
@@ -38,9 +41,24 @@ func run(ctx context.Context) error {
 		"version", cfg.Service.Version,
 	)
 
+	sampleUseCase, err := sample.New(sample.WithLogger(logger))
+	if err != nil {
+		return fmt.Errorf("create sample use case: %w", err)
+	}
+
+	sampleHandler, err := handler.NewSample(
+		handler.WithService(sampleUseCase),
+		handler.WithLogger(logger),
+	)
+	if err != nil {
+		return fmt.Errorf("create sample handler: %w", err)
+	}
+
 	httpServer, err := http.NewServer(
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
+		http.WithBasePath("/v1"),
+		http.WithRoutes(api.SampleRoutes(sampleHandler)),
 	)
 	if err != nil {
 		return fmt.Errorf("create http server: %w", err)
