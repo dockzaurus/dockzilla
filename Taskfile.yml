@@ -31,6 +31,33 @@ tasks:
       - mkdir -p ../../{{.BIN_DIR}}
       - go build -o ../../{{.BIN_DIR}}/{{.BIN_NAME}} ./cmd
 
+  backend:lint:
+    desc: Lint the backend (golangci-lint, Uber style rules)
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - golangci-lint run
+
+  backend:lint:fix:
+    desc: Lint the backend and apply the auto-fixable subset
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - golangci-lint run --fix
+
+  backend:test:
+    desc: Run the backend tests with the race detector
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - go test -race ./...
+
+  backend:check:
+    desc: Everything CI runs for the backend — build, vet, lint, test
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - go build ./...
+      - go vet ./...
+      - golangci-lint run
+      - go test -race ./...
+
   frontend:dev:
     desc: Run the frontend dev server
     dir: '{{.FRONTEND_DIR}}'

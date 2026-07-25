@@ -39,10 +39,21 @@ This runs the backend (`APP_ENV=local`, reading `packages/backend/cmd/config.loc
 | `task build` | Build backend + frontend |
 | `task backend:dev` | Run only the backend (`go run ./cmd`) |
 | `task backend:build` | Build the backend binary to `bin/backend` |
+| `task backend:lint` | Lint the backend (golangci-lint, Uber style rules) |
+| `task backend:lint:fix` | Lint and apply the auto-fixable subset |
+| `task backend:test` | Run the backend tests with the race detector |
+| `task backend:check` | Everything CI runs: build + vet + lint + test |
 | `task frontend:dev` | Run only the frontend dev server |
 | `task frontend:build` | Build the frontend for production |
 
 Run `task --list` to see all available tasks.
+
+## Code style
+
+The Go backend follows the [Uber Go Style Guide](https://github.com/uber-go/guide/blob/master/style.md).
+See [`GO_STYLE.md`](GO_STYLE.md) for the house rules explained with examples from this codebase —
+start there if you're new to Go. The rules are enforced by `packages/backend/.golangci.yml`; run
+`task backend:check` before opening a PR.
 
 ## Project structure
 

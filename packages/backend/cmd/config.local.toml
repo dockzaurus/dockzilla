@@ -14,10 +14,10 @@ service_version = "v1"
 
 [http.http_server]
 port = 8080
-read_timeout = 10
-write_timeout = 10
+read_timeout = "10s"
+write_timeout = "10s"
 
 [http.telemetry]
-enable = true
+enabled = true
 endpoint = "http://localhost:4317"
 insecure = true

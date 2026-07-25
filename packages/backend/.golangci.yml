@@ -1,0 +1,237 @@
+# Lint configuration for the Dockzilla backend.
+#
+# Baseline: the Uber Go Style Guide.
+#   https://github.com/uber-go/guide/blob/master/style.md
+#
+# Every linter below is enabled because it mechanises a specific rule from that
+# guide (or from ../../GO_STYLE.md, which explains the same rules with examples
+# taken from this codebase). If you are about to disable something here, read
+# the rule it enforces first.
+#
+# Usage:
+#   cd packages/backend
+#   golangci-lint run          # report
+#   golangci-lint run --fix    # apply the auto-fixable subset
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  # Keep golangci-lint's default set (errcheck, govet, ineffassign,
+  # staticcheck, unused) and add to it.
+  default: standard
+
+  enable:
+    # -- Errors -------------------------------------------------------------
+    # "Error Wrapping", "Error Types", "Handle Errors Once"
+    - errorlint # %w / errors.Is / errors.As used correctly
+    - errname # sentinel errors are ErrFoo, error types are FooError
+    - nilerr # don't `return nil` after checking `err != nil`
+    - nilnesserr # don't return a *different* nil error
+    - nilnil # never return (nil, nil) for (value, error)
+    - wrapcheck # errors crossing a package boundary carry context
+
+    # -- Documentation & naming ---------------------------------------------
+    # "Avoid Naked Parameters", "Package Names", "Function Names"
+    - revive # doc comments on exported items, naming, early return
+    - godoclint # doc comment starts with the identifier's name
+    - godot # comments are sentences and end with a period
+    - misspell # typos in comments ("stary the main loop")
+    - predeclared # don't shadow len, cap, new, min, max...
+
+    # -- API shape ----------------------------------------------------------
+    # "Receivers and Interfaces", "Functional Options", "Avoid Naked Returns"
+    - recvcheck # don't mix pointer and value receivers on one type
+    - ireturn # accept interfaces, return concrete types
+    - iface # don't declare interfaces nobody needs
+    - funcorder # exported methods before unexported ones
+    - nakedret # no naked returns in anything but a tiny function
+    - unparam # unused / always-identical parameters
+
+    # -- Context & concurrency ----------------------------------------------
+    # "Context first parameter", goroutine lifetime discipline
+    - containedctx # never store a context.Context in a struct
+    - contextcheck # don't drop an inherited context
+    - fatcontext # no context built up inside a loop
+    - noctx # use the ctx-aware variant when one exists
+
+    # -- Correctness --------------------------------------------------------
+    - bodyclose # every HTTP response body is closed
+    - durationcheck # no accidental time.Duration multiplication
+    - errchkjson # json.Marshal error handling
+    - forcetypeassert # `x.(T)` without the ok form is a panic waiting
+    - makezero # no append to a non-zero-length make()
+    - reassign # don't reassign another package's variables
+    - copyloopvar # loop variable copies (Go 1.22+ semantics)
+    - intrange # `for i := range n`
+    - usestdlibvars # http.MethodGet over "GET"
+    - modernize # use current stdlib/language features
+
+    # -- Simplicity ---------------------------------------------------------
+    # "Reduce Nesting", "Avoid init()", "Prefer strconv over fmt"
+    - gocritic
+    - gochecknoinits # no init() functions
+    - nestif # deep nesting means you missed an early return
+    - unconvert # no redundant type conversions
+    - wastedassign
+    - whitespace
+    - prealloc # "Prefer Specifying Container Capacity"
+    - perfsprint # strconv over fmt.Sprintf
+
+    # -- Logging ------------------------------------------------------------
+    - sloglint # consistent log/slog usage across the codebase
+
+    # -- Security -----------------------------------------------------------
+    - gosec
+
+    # -- Tests --------------------------------------------------------------
+    - thelper # helpers call t.Helper()
+    - tparallel # t.Parallel() used coherently
+    - usetesting # t.TempDir/t.Setenv over hand-rolled equivalents
+    - testableexamples
+
+    # -- Meta ---------------------------------------------------------------
+    - nolintlint # every //nolint must be specific and explained
+    - lll # keep lines readable
+
+  settings:
+    revive:
+      # Fail on style violations rather than merely reporting them.
+      severity: error
+      rules:
+        # Exported identifiers are documented; unexported ones are NOT
+        # required to be. This is the project's comment rule.
+        - name: exported
+          arguments: [checkPrivateReceivers, disableStutteringCheck]
+        - name: package-comments
+        # Naming
+        - name: var-naming # serviceID, not serviceId; URL, not Url
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: time-naming
+        # Errors
+        - name: error-return # error is the last return value
+        - name: error-naming
+        - name: error-strings # lowercase, no trailing punctuation
+        - name: errorf # fmt.Errorf over errors.New(fmt.Sprintf(...))
+        - name: indent-error-flow
+        # Control flow — "Reduce Nesting"
+        - name: early-return
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: empty-block
+        # Context
+        - name: context-as-argument # ctx is the first parameter
+        - name: context-keys-type
+        # Misc
+        - name: blank-imports
+        - name: dot-imports
+        - name: increment-decrement
+        - name: range
+        - name: unexported-return
+
+    sloglint:
+      # We use the key-value form throughout; don't allow both styles.
+      no-mixed-args: true
+      kv-only: true
+      # Prefer InfoContext/WarnContext so logs carry trace information.
+      context: all
+      # The message is a constant; variable data belongs in the attributes.
+      static-msg: true
+      no-raw-keys: false
+      key-naming-case: snake
+
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - errors.Join(
+        - .Wrap(
+        - .Wrapf(
+
+    nestif:
+      min-complexity: 4
+
+    nakedret:
+      max-func-lines: 0 # no naked returns at all
+
+    lll:
+      line-length: 120
+      tab-width: 4
+
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-unused: false
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - opinionated
+      disabled-checks:
+        # Conflicts with the wrapped-error style used across the codebase.
+        - hugeParam
+        - rangeValCopy
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # readability beats padding for config structs
+
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - std-error-handling
+    rules:
+      # Test files get a longer leash: table-driven tests are naturally
+      # repetitive and their helpers do not need doc comments.
+      - path: _test\.go$
+        linters:
+          - dupl
+          - funlen
+          - gosec
+          - lll
+          - wrapcheck
+
+      # cmd/ is the composition root: it is allowed to build the world and
+      # to be the single place that terminates the process.
+      - path: ^cmd/
+        linters:
+          - gochecknoglobals
+
+formatters:
+  enable:
+    - gofmt
+    - gci # enforces the import grouping below
+
+  settings:
+    gci:
+      # Uber: "There should be two import groups: standard library, and
+      # everything else." Our own packages sort in with everything else.
+      sections:
+        - standard
+        - default
+      custom-order: true
+
+  exclusions:
+    generated: lax

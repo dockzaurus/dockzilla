@@ -1,49 +1,60 @@
+// Package core holds the application service: the top-level orchestrator that
+// owns every transport handler (HTTP today, workers later) and drives their
+// startup and graceful shutdown as a single unit.
 package core
 
 import (
 	"context"
-	"dockzilla/pkg/domain"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 
+	"dockzilla/pkg/domain"
 	serviceloader "github.com/zixyos/goloader/service"
 )
 
-// Application type represent the Application structure.
+// Application is the root service of the backend. It runs every registered
+// handler in its own goroutine and coordinates their shutdown when the process
+// is asked to terminate.
+//
+// The zero value is not usable; build one with NewApplication.
 type Application struct {
-	serviceID   domain.UUID
 	serviceName string
 
 	handlers []domain.Service
 
 	logger *slog.Logger
 
-	cancel context.CancelFunc
+	// mu guards serviceID and cancel. Both are written from the goroutine
+	// that boots the service and read from the one that stops it.
+	mu        sync.RWMutex
+	serviceID domain.UUID
+	cancel    context.CancelFunc
 
-	mu sync.RWMutex
 	wg sync.WaitGroup
 }
 
-// ApplicationConfig type represent the configuration injection's function .
-type ApplicationConfig func(*Application)
+// Option configures an Application during construction.
+type Option func(*Application)
 
-// WithLogger inject the logger to the Application instance.
-func WithLogger(logger *slog.Logger) ApplicationConfig {
+// WithLogger sets the structured logger used by the application.
+func WithLogger(logger *slog.Logger) Option {
 	return func(a *Application) {
 		a.logger = logger
 	}
 }
 
-// WithApplicationHandler injects the handlers to the application.
-func WithApplicationHandler(handlers ...domain.Service) ApplicationConfig {
+// WithApplicationHandler registers handlers to be run by the application. It
+// can be passed more than once; handlers accumulate.
+func WithApplicationHandler(handlers ...domain.Service) Option {
 	return func(a *Application) {
 		a.handlers = append(a.handlers, handlers...)
 	}
 }
 
-// NewApplication return the new Application instance with the needed options.
-func NewApplication(opts ...ApplicationConfig) *Application {
+// NewApplication returns a new Application configured with opts.
+func NewApplication(opts ...Option) *Application {
 	a := new(Application)
 	a.serviceName = "dockzilla-application"
 
@@ -54,58 +65,93 @@ func NewApplication(opts ...ApplicationConfig) *Application {
 	return a
 }
 
-// Run stary the main loop for the application service and handle all services.
+// Run starts every registered handler in its own goroutine and blocks until
+// ctx is cancelled, either by its parent or by a call to Stop. A handler that
+// fails to start is logged and does not abort the others.
 func (a *Application) Run(ctx context.Context) error {
-	ctx, a.cancel = context.WithCancel(ctx)
-	a.logger.InfoContext(ctx, "starting application", "name", a.serviceName, "identifier", a.serviceID.String())
+	ctx, cancel := context.WithCancel(ctx)
+
+	a.mu.Lock()
+	a.cancel = cancel
+	a.mu.Unlock()
+
+	a.logger.InfoContext(ctx, "starting application",
+		"name", a.serviceName,
+		"identifier", a.id(),
+	)
 
 	for _, handler := range a.handlers {
 		a.wg.Add(1)
+
 		go func(h domain.Service) {
 			defer a.wg.Done()
+
 			a.logger.InfoContext(ctx, "starting service", "name", h.Name())
+
 			if err := h.Run(ctx); err != nil {
-				a.logger.WarnContext(ctx, "failed to start service", "name", h.Name(), "err", err)
+				a.logger.WarnContext(ctx, "failed to start service", "name", h.Name(), "error", err)
 			}
 		}(handler)
 	}
 
 	<-ctx.Done()
-	a.logger.InfoContext(ctx, "stopping application", "name", a.serviceName, "identifier", a.serviceID)
+
+	a.logger.InfoContext(ctx, "application run loop exited",
+		"name", a.serviceName,
+		"identifier", a.id(),
+	)
+
 	return nil
 }
 
-// Stop gracefully shutdown the application service and it's children handlers.
+// Stop gracefully shuts the application down: it cancels the context shared by
+// every handler, stops each handler in turn, then waits for their goroutines to
+// return. Failures are collected so one broken handler cannot prevent the
+// others from stopping.
 func (a *Application) Stop(ctx context.Context) error {
-	a.logger.InfoContext(ctx, "stopping application", "name", a.serviceName, "identifier", a.serviceID)
-	if a.cancel != nil {
-		a.cancel()
+	a.logger.InfoContext(ctx, "stopping application",
+		"name", a.serviceName,
+		"identifier", a.id(),
+	)
+
+	a.mu.RLock()
+	cancel := a.cancel
+	a.mu.RUnlock()
+
+	if cancel != nil {
+		cancel()
 	}
 
 	var errs []error
+
 	for _, handler := range a.handlers {
 		if err := handler.Stop(ctx); err != nil {
-			errs = append(errs, err)
+			errs = append(errs, fmt.Errorf("stop %s: %w", handler.Name(), err))
 		}
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-
 	a.wg.Wait()
-	return nil
+
+	return errors.Join(errs...)
 }
 
-// SetServiceID set the serviceID to the Application Service.
+// SetServiceID records the identifier assigned to this service by the service
+// loader. It is safe to call concurrently with Run and Stop.
 func (a *Application) SetServiceID(serviceID serviceloader.UUID) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
 	a.serviceID = domain.UUID(serviceID)
 }
 
-// Name return the Service name.
+// Name returns the service name.
 func (a *Application) Name() string {
 	return a.serviceName
+}
+
+func (a *Application) id() string {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	return a.serviceID.String()
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 
 	"github.com/zixyos/giniservice/http"
 	goconfig "github.com/zixyos/goloader/config"
@@ -34,17 +35,18 @@ type ServiceConfig struct {
 
 // Config type represent the Application configuration.
 type Config struct {
-	HTTP    http.Config    `koanf:"http"`
+	HTTP    http.Config   `koanf:"http"`
 	Service ServiceConfig `koanf:"service"`
 	Storage StorageConfig `koanf:"storage"`
 }
 
-// LoadConfig load to all service configuration.
+// LoadConfig reads the configuration for the current APP_ENV from the embedded
+// TOML files, with environment variables taking precedence.
 func LoadConfig() (*Config, error) {
-	var config *Config
+	var config Config
 	if err := goconfig.Load(&config, goconfig.WithFs(files)); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 
-	return config, nil
+	return &config, nil
 }
