@@ -40,6 +40,8 @@ linters:
     - godot # comments are sentences and end with a period
     - misspell # typos in comments ("stary the main loop")
     - predeclared # don't shadow len, cap, new, min, max...
+    - inamedparam # "Avoid Naked Parameters": name interface method params
+    - goprintffuncname # "Naming Printf-style Functions": suffix them with f
 
     # -- API shape ----------------------------------------------------------
     # "Receivers and Interfaces", "Functional Options", "Avoid Naked Returns"
@@ -73,6 +75,8 @@ linters:
     # "Reduce Nesting", "Avoid init()", "Prefer strconv over fmt"
     - gocritic
     - gochecknoinits # no init() functions
+    - gochecknoglobals # "Avoid Mutable Globals": inject, don't share state
+    - embeddedstructfieldcheck # "Embedding in Structs": embeds first, then a blank line
     - nestif # deep nesting means you missed an early return
     - unconvert # no redundant type conversions
     - wastedassign
@@ -149,6 +153,10 @@ linters:
         - error
         - empty
         - stdlib
+        # The guide's own "Functional Options" pattern requires constructors'
+        # With* helpers to return the Option INTERFACE, which is a deliberate
+        # exception to "accept interfaces, return concrete types".
+        - .*Option$
 
     wrapcheck:
       ignore-sigs:
@@ -166,7 +174,8 @@ linters:
       max-func-lines: 0 # no naked returns at all
 
     lll:
-      line-length: 120
+      # Uber: "We recommend a soft line length limit of 99 characters."
+      line-length: 99
       tab-width: 4
 
     nolintlint:
@@ -194,33 +203,36 @@ linters:
       check-type-assertions: true
       check-blank: true
 
-    exhaustive:
-      default-signifies-exhaustive: true
-
   exclusions:
     generated: lax
+    # NOTE: the "comments" preset is deliberately NOT used — it suppresses the
+    # missing-package-comment and doc-comment findings, which are exactly the
+    # rules this project cares about.
     presets:
-      - comments
       - std-error-handling
     rules:
       # Test files get a longer leash: table-driven tests are naturally
-      # repetitive and their helpers do not need doc comments.
+      # repetitive, and their fixtures trip the security and wrapping linters.
       - path: _test\.go$
         linters:
-          - dupl
-          - funlen
           - gosec
           - lll
           - wrapcheck
 
-      # cmd/ is the composition root: it is allowed to build the world and
-      # to be the single place that terminates the process.
+      # The embedded config filesystem must be a package-level var for
+      # //go:embed to work; it is read-only, so it is not "mutable global state".
       - path: ^cmd/
         linters:
           - gochecknoglobals
 
 formatters:
   enable:
+    # NOTE: Uber's Linting section names goimports, but modern goimports splits
+    # module-local imports ("dockzilla/...") into a THIRD group, which directly
+    # contradicts the guide's own "Import Group Ordering" rule ("There should be
+    # two import groups: standard library, and everything else"). The two cannot
+    # both be satisfied, so we follow the rule and use gofmt + gci, which
+    # produce exactly the grouping the guide describes.
     - gofmt
     - gci # enforces the import grouping below
 

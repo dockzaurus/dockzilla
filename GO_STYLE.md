@@ -241,24 +241,34 @@ unreachable, so a failing handler silently skipped waiting for the goroutines.
 
 ## 4. Constructors and functional options
 
-Our services are built with **functional options**. The pattern looks like this:
+Our services are built with **functional options**. Uber's guide is specific about the shape: the
+`Option` type is an **interface holding an unexported method**, not a bare `func` type.
 
 ```go
-// Option configures a Server during construction.
-type Option func(*Server)
+// Option configures a Server during construction. It is an interface rather
+// than a bare function type so that options stay comparable in tests and can
+// grow behaviour later without breaking callers.
+type Option interface {
+	apply(s *Server)
+}
+
+// optionFunc adapts a plain function to the Option interface.
+type optionFunc func(*Server)
+
+func (f optionFunc) apply(s *Server) { f(s) }
 
 // WithLogger sets the structured logger used by the server. It is required:
 // NewServer fails when no logger is provided.
 func WithLogger(logger *slog.Logger) Option {
-	return func(s *Server) {
+	return optionFunc(func(s *Server) {
 		s.logger = logger
-	}
+	})
 }
 
 func NewServer(opts ...Option) (*Server, error) {
-	s := new(Server)
+	s := &Server{}
 	for _, opt := range opts {
-		opt(s)
+		opt.apply(s)
 	}
 
 	if s.logger == nil {
@@ -268,6 +278,11 @@ func NewServer(opts ...Option) (*Server, error) {
 }
 ```
 
+The three extra lines (`optionFunc` and its `apply`) buy you what a closure can't: options are
+**values you can compare in a test**, and they can implement other interfaces such as
+`fmt.Stringer`. `type Option func(*Server)` gives you neither — two closures are never equal, so you
+cannot assert that a function returned the option you expected.
+
 Rules we follow:
 
 - The type is named **`Option`**, singular — it is *one* option. It was `Options` and
@@ -276,6 +291,11 @@ Rules we follow:
 - **Validate required options in the constructor.** Options are optional by construction, so the
   only place you can enforce "logger is mandatory" is `New...`.
 - Say in each option's doc comment whether it is required.
+- Use `&Server{}`, never `new(Server)` — the guide's "Initializing Struct References" rule. `&T{}`
+  reads the same whether or not you set fields at construction; `new(T)` doesn't scale to that.
+
+This is the one place we deliberately return an interface from an exported function, which is why
+`.golangci.yml` exempts `.*Option$` from `ireturn`.
 
 ---
 
@@ -418,6 +438,29 @@ one real interface — small (three methods) and defined by the *consumer* (`cor
 That's the Go way round: don't define an interface until you have a second implementation or a test
 that needs one.
 
+The one sanctioned exception is the `Option` interface from §4 — the functional options pattern only
+works if `With*` returns the interface.
+
+### Verify interface compliance at compile time
+
+Go's interface satisfaction is implicit: nothing in `Server` says "I implement `domain.Service`". So
+if you rename a method, the code still compiles and only breaks where the value is *used* as the
+interface — possibly in another package, possibly at runtime.
+
+Pin it down with a blank assignment, right above the type:
+
+```go
+// Verify at compile time that a Server is a handler the application can run.
+var _ domain.Service = (*Server)(nil)
+```
+
+If `*Server` ever stops satisfying `domain.Service`, **this line** fails to compile, with the error
+pointing at the type that broke rather than at some distant call site. The right-hand side is the
+zero value of the asserted type: `nil` for pointers, slices and maps; `T{}` for a struct.
+
+Add one for every type that exists to satisfy an interface. We have two:
+`*core.Application` (asserted against `serviceloader.Service`) and `*http.Server`.
+
 ---
 
 ## 7. Naming and package layout
@@ -437,6 +480,41 @@ that needs one.
   code) makes it unreachable from anywhere useful. One `internal/` per module is enough.
 - **Abbreviations keep their case**: `URL`, `HTTP`, `ID`, `UUID` — so `serviceID`, not `serviceId`;
   `HTTPServer`, not `HttpServer`.
+
+### Prefix unexported package-level vars and consts with `_`
+
+This one surprises everybody, and it is a real Uber rule:
+
+```go
+// BAD — `files` looks like a local variable at every use site.
+//go:embed *.toml
+var files embed.FS
+
+// GOOD — the underscore says "this is package scope" wherever you read it.
+//go:embed *.toml
+var _configFiles embed.FS
+
+const _defaultServiceName = "dockzilla-application"
+```
+
+Top-level names are visible in every file of the package. Without the prefix, reading
+`files` halfway down a 200-line file gives you no clue whether it's a local, a parameter, or shared
+package state — and shadowing one by accident is silent. The `_` makes it obvious.
+
+This applies to **unexported** top-level `var`s and `const`s only. Exported ones (`ErrNotFound`) keep
+their normal names, and locals are never prefixed.
+
+### Keep lines under 99 characters
+
+A soft limit, not a hard one — Uber's number, enforced by `lll`. Long log calls are the usual
+offender; break them one key-value pair per line:
+
+```go
+a.logger.WarnContext(ctx, "failed to start service",
+	"name", h.Name(),
+	"error", err,
+)
+```
 
 ---
 
@@ -461,6 +539,11 @@ import (
 
 `gofmt` sorts within a group but will not create the groups for you — `gci` does, and
 `task backend:lint:fix` will rewrite the block for you. Don't hand-maintain it.
+
+> **Why not `goimports`?** Uber's Linting section names it, but current versions of `goimports`
+> split module-local imports (`dockzilla/...`) into a *third* group, which contradicts the guide's
+> own two-group rule. The two cannot both be satisfied, so we follow the rule and use `gofmt` + `gci`.
+> This is noted in `.golangci.yml` so nobody "fixes" it back.
 
 Only alias an import to resolve a genuine collision (`ginihttp` inside our own `http` package).
 Never alias for brevity.

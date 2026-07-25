@@ -9,8 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 
+	"dockzilla/pkg/domain"
 	ginihttp "github.com/zixyos/giniservice/http"
 )
+
+// Verify at compile time that a Server is a handler the application can run.
+var _ domain.Service = (*Server)(nil)
 
 // Server adapts the giniservice HTTP server to the domain.Service contract.
 // The zero value is not usable; build one with NewServer.
@@ -20,32 +24,41 @@ type Server struct {
 	cfg    *ginihttp.Config
 }
 
-// Option configures a Server during construction.
-type Option func(*Server)
+// Option configures a Server during construction. It is an interface rather
+// than a bare function type so that options stay comparable in tests and can
+// grow behaviour later without breaking callers.
+type Option interface {
+	apply(s *Server)
+}
+
+// optionFunc adapts a plain function to the Option interface.
+type optionFunc func(*Server)
+
+func (f optionFunc) apply(s *Server) { f(s) }
 
 // WithLogger sets the structured logger used by the server. It is required:
 // NewServer fails when no logger is provided.
 func WithLogger(logger *slog.Logger) Option {
-	return func(s *Server) {
+	return optionFunc(func(s *Server) {
 		s.logger = logger
-	}
+	})
 }
 
 // WithConfig sets the HTTP configuration (listen port, timeouts, telemetry).
 // It is required: NewServer fails when no configuration is provided.
 func WithConfig(cfg *ginihttp.Config) Option {
-	return func(s *Server) {
+	return optionFunc(func(s *Server) {
 		s.cfg = cfg
-	}
+	})
 }
 
 // NewServer builds a Server from opts. It returns an error when a required
 // option is missing or when the underlying giniservice server cannot be
 // created, so a caller never receives a partially initialised Server.
 func NewServer(opts ...Option) (*Server, error) {
-	s := new(Server)
+	s := &Server{}
 	for _, opt := range opts {
-		opt(s)
+		opt.apply(s)
 	}
 
 	if s.logger == nil {

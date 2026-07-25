@@ -8,8 +8,11 @@ import (
 	goconfig "github.com/zixyos/goloader/config"
 )
 
+// _configFiles holds the per-environment TOML files, compiled into the binary
+// so the service has no runtime dependency on its working directory.
+//
 //go:embed *.toml
-var files embed.FS
+var _configFiles embed.FS
 
 // DatabaseConfig type represent the database configuration.
 type DatabaseConfig struct {
@@ -44,7 +47,7 @@ type Config struct {
 // TOML files, with environment variables taking precedence.
 func LoadConfig() (*Config, error) {
 	var config Config
-	if err := goconfig.Load(&config, goconfig.WithFs(files)); err != nil {
+	if err := goconfig.Load(&config, goconfig.WithFs(_configFiles)); err != nil {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 

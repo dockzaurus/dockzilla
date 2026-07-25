@@ -14,6 +14,13 @@ import (
 	serviceloader "github.com/zixyos/goloader/service"
 )
 
+// _defaultServiceName is the name reported by an Application that was not given
+// one explicitly.
+const _defaultServiceName = "dockzilla-application"
+
+// Verify at compile time that an Application is a service the loader can drive.
+var _ serviceloader.Service = (*Application)(nil)
+
 // Application is the root service of the backend. It runs every registered
 // handler in its own goroutine and coordinates their shutdown when the process
 // is asked to terminate.
@@ -35,31 +42,39 @@ type Application struct {
 	wg sync.WaitGroup
 }
 
-// Option configures an Application during construction.
-type Option func(*Application)
+// Option configures an Application during construction. It is an interface
+// rather than a bare function type so that options stay comparable in tests and
+// can grow behaviour later without breaking callers.
+type Option interface {
+	apply(a *Application)
+}
+
+// optionFunc adapts a plain function to the Option interface.
+type optionFunc func(*Application)
+
+func (f optionFunc) apply(a *Application) { f(a) }
 
 // WithLogger sets the structured logger used by the application.
 func WithLogger(logger *slog.Logger) Option {
-	return func(a *Application) {
+	return optionFunc(func(a *Application) {
 		a.logger = logger
-	}
+	})
 }
 
 // WithApplicationHandler registers handlers to be run by the application. It
 // can be passed more than once; handlers accumulate.
 func WithApplicationHandler(handlers ...domain.Service) Option {
-	return func(a *Application) {
+	return optionFunc(func(a *Application) {
 		a.handlers = append(a.handlers, handlers...)
-	}
+	})
 }
 
 // NewApplication returns a new Application configured with opts.
 func NewApplication(opts ...Option) *Application {
-	a := new(Application)
-	a.serviceName = "dockzilla-application"
+	a := &Application{serviceName: _defaultServiceName}
 
 	for _, opt := range opts {
-		opt(a)
+		opt.apply(a)
 	}
 
 	return a
@@ -89,7 +104,10 @@ func (a *Application) Run(ctx context.Context) error {
 			a.logger.InfoContext(ctx, "starting service", "name", h.Name())
 
 			if err := h.Run(ctx); err != nil {
-				a.logger.WarnContext(ctx, "failed to start service", "name", h.Name(), "error", err)
+				a.logger.WarnContext(ctx, "failed to start service",
+					"name", h.Name(),
+					"error", err,
+				)
 			}
 		}(handler)
 	}
