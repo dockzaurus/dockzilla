@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dockzilla/internal/core"
+	"dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/utils"
 
 	"github.com/zixyos/glog"
@@ -30,8 +31,14 @@ func main() {
 		cfg.Service.Version,
 	)
 
+	httpServer := http.NewServer(
+		http.WithLogger(logger),
+		http.WithConfig(&cfg.HTTP),
+	)
+
 	app := core.NewApplication(
 		core.WithLogger(logger),
+		core.WithApplicationHandler(httpServer),
 	)
 
 	serviceloader.New(

@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+
+	"github.com/zixyos/giniservice/http"
 	goconfig "github.com/zixyos/goloader/config"
 )
 
@@ -24,12 +26,6 @@ type StorageConfig struct {
 	Cache    CacheConfig    `koanf:"cache"`
 }
 
-// HTTPConfig type represent the HTTP configuration.
-type HTTPConfig struct {
-	Port int    `koanf:"port"`
-	Host string `koanf:"host"`
-}
-
 // ServiceConfig type represent the service configuration.
 type ServiceConfig struct {
 	Name    string `koanf:"name"`
@@ -38,7 +34,7 @@ type ServiceConfig struct {
 
 // Config type represent the Application configuration.
 type Config struct {
-	HTTP    HTTPConfig    `koanf:"http"`
+	HTTP    http.Config    `koanf:"http"`
 	Service ServiceConfig `koanf:"service"`
 	Storage StorageConfig `koanf:"storage"`
 }

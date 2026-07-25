@@ -3,11 +3,21 @@ name = "dockzilla-back"
 version = "v1"
 
 [storage]
-    [storage.database]
-        url = ""
-    [storage.cache]
-        url = ""
+  [storage.database]
+    url = ""
+  [storage.cache]
+    url = ""
 
 [http]
-host = "localhost"
-port = "8080"
+service_name = "dockzilla-http-api"
+service_version = "v1"
+
+[http.http_server]
+port = 8080
+read_timeout = 10
+write_timeout = 10
+
+[http.telemetry]
+enable = true
+endpoint = "http://localhost:4317"
+insecure = true

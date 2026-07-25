@@ -62,6 +62,7 @@ func (a *Application) Run(ctx context.Context) error {
 	for _, handler := range a.handlers {
 		a.wg.Add(1)
 		go func(h domain.Service) {
+			defer a.wg.Done()
 			a.logger.InfoContext(ctx, "starting service", "name", h.Name())
 			if err := h.Run(ctx); err != nil {
 				a.logger.WarnContext(ctx, "failed to start service", "name", h.Name(), "err", err)
