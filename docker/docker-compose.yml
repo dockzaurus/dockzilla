@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=database-dev
+      - POSTGRES_USER=dev
+      - POSTGRES_PASSWORD=dev_password_123
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    restart: unless-stopped
+
+  redis:
+      image: redis:8.8.1-alpine
+      ports:
+        - "6379:6379"
+      volumes:
+        - redis_data:/data
+      restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+    name: dev-db-volume
+  redis_data:
+    driver: local
+    name: dev-redis-volume
