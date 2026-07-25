@@ -1,5 +1,7 @@
 # Dockzilla
 
+[![Backend CI](https://github.com/dockzaurus/dockzilla/actions/workflows/backend-ci.yml/badge.svg?branch=master)](https://github.com/dockzaurus/dockzilla/actions/workflows/backend-ci.yml)
+
 A self-hosted PaaS — think [Dokploy](https://dokploy.com), [Coolify](https://coolify.io), or [Zane-ops](https://zaneops.dev/), with the developer experience of Vercel/Heroku.
 
 Point it at a git repo or a Docker image, and your app goes live on a domain with HTTPS — no SSH, no hand-written `docker run`. See [`ONBOARDING.md`](https://github.com/dockzaurus/internal-shared-docs/blob/master/docs/ONBOARDING.MD) for the full pitch, the concepts involved, and the v1 scope.
@@ -47,6 +49,13 @@ This runs the backend (`APP_ENV=local`, reading `packages/backend/cmd/config.loc
 | `task frontend:build` | Build the frontend for production |
 
 Run `task --list` to see all available tasks.
+
+## Continuous integration
+
+Every PR touching `packages/backend/**` runs [`.github/workflows/backend-ci.yml`](.github/workflows/backend-ci.yml),
+which is `task backend:check` split into three parallel jobs — **Build** (`go build`, `go vet`,
+`go mod tidy -diff`), **Lint** (golangci-lint) and **Test** (`go test -race`). Run
+`task backend:check` locally to get the same answer before pushing. The frontend workflow comes later.
 
 ## Code style
 
