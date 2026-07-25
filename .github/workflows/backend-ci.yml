@@ -1,0 +1,77 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'packages/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'packages/backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: packages/backend
+
+jobs:
+  build:
+    name: Build Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: packages/backend/go.mod
+          cache-dependency-path: packages/backend/go.sum
+
+      - name: Compile
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Verify go.mod and go.sum are tidy
+        run: go mod tidy -diff
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: packages/backend/go.mod
+          cache-dependency-path: packages/backend/go.sum
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: packages/backend
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: packages/backend/go.mod
+          cache-dependency-path: packages/backend/go.sum
+
+      - name: Test
+        run: go test -race ./...
