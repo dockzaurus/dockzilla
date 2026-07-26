@@ -17,7 +17,6 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
-
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
