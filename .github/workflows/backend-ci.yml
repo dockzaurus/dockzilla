@@ -24,7 +24,7 @@ defaults:
 
 jobs:
   build:
-    name: Build | Lint | Test
+    name: Build | Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -48,6 +48,18 @@ jobs:
 
       - name: Verify go.mod and go.sum are tidy
         run: go mod tidy -diff
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: packages/backend/go.mod
+          cache-dependency-path: packages/backend/go.sum
 
       - name: Test
         run: go test -race ./...
