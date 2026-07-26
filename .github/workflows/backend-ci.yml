@@ -3,13 +3,13 @@ name: Backend CI
 on:
   pull_request:
     paths:
-      - 'packages/backend/**'
-      - '.github/workflows/backend-ci.yml'
+      - "packages/backend/**"
+      - ".github/workflows/backend-ci.yml"
   push:
     branches: [master]
     paths:
-      - 'packages/backend/**'
-      - '.github/workflows/backend-ci.yml'
+      - "packages/backend/**"
+      - ".github/workflows/backend-ci.yml"
 
 concurrency:
   group: backend-ci-${{ github.ref }}
@@ -24,28 +24,7 @@ defaults:
 
 jobs:
   build:
-    name: Build Service
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: packages/backend/go.mod
-          cache-dependency-path: packages/backend/go.sum
-
-      - name: Compile
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Verify go.mod and go.sum are tidy
-        run: go mod tidy -diff
-
-  lint:
-    name: Lint
+    name: Build | Lint | Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -61,17 +40,14 @@ jobs:
           version: v2.12.2
           working-directory: packages/backend
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
+      - name: Compile
+        run: go build ./...
 
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: packages/backend/go.mod
-          cache-dependency-path: packages/backend/go.sum
+      - name: Vet
+        run: go vet ./...
+
+      - name: Verify go.mod and go.sum are tidy
+        run: go mod tidy -diff
 
       - name: Test
         run: go test -race ./...
