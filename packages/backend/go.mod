@@ -10,7 +10,7 @@ require (
 	github.com/uptrace/bun/dialect/pgdialect v1.2.18
 	github.com/uptrace/bun/driver/pgdriver v1.2.18
 	github.com/zixyos/giniservice v1.1.0
-	github.com/zixyos/glog v0.2.1
+	github.com/zixyos/glog v0.3.0
 	github.com/zixyos/goloader v0.3.1
 )
 
