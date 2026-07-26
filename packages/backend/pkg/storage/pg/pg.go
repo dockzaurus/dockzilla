@@ -18,7 +18,6 @@ import (
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/driver/pgdriver"
-
 	"github.com/zixyos/goloader/service"
 )
 
@@ -34,13 +33,13 @@ var _ serviceloader.Service = (*Storage)(nil)
 type Storage struct {
 	logger *slog.Logger
 	db     *bun.DB
-	cfg    *Config
 
 	healthy atomic.Bool
 
-	mu        sync.Mutex
+	mu        sync.RWMutex
 	cancel    context.CancelFunc
 	serviceID serviceloader.UUID
+	cfg       *Config
 
 	wg sync.WaitGroup
 }
@@ -202,12 +201,17 @@ func (s *Storage) Healthy() bool {
 
 // Name returns the component name used in logs.
 func (s *Storage) Name() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	return s.cfg.ServiceName
 }
 
+// SetServiceID sets the service identifier used by the application loader.
 func (s *Storage) SetServiceID(serviceID serviceloader.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.serviceID = serviceID
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"dockzilla/internal/core"
 	"dockzilla/internal/core/sample"
+	"dockzilla/internal/infra/storage/cache"
 	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/infra/transport/http/api"
@@ -52,6 +53,14 @@ func run(ctx context.Context) error {
 
 	_ = postgres.NewTransactor(store.DB())
 
+	cacheStore, err := cache.NewStorage(
+		cache.WithLogger(logger),
+		cache.WithConfig(&cfg.Storage.Cache),
+	)
+	if err != nil {
+		return fmt.Errorf("create redis cache: %w", err)
+	}
+
 	sampleUseCase, err := sample.New(sample.WithLogger(logger))
 	if err != nil {
 		return fmt.Errorf("create sample use case: %w", err)
@@ -77,7 +86,7 @@ func run(ctx context.Context) error {
 
 	app := core.NewApplication(
 		core.WithLogger(logger),
-		core.WithApplicationHandler(httpServer, store),
+		core.WithApplicationHandler(httpServer, store, cacheStore),
 	)
 
 	serviceloader.New(

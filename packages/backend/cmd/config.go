@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"dockzilla/pkg/storage/pg"
+	"dockzilla/pkg/storage/redis"
 	"github.com/zixyos/giniservice/http"
 	goconfig "github.com/zixyos/goloader/config"
 )
@@ -15,15 +16,10 @@ import (
 //go:embed *.toml
 var _configFiles embed.FS
 
-// CacheConfig type represent the cache configuration.
-type CacheConfig struct {
-	URL string `koanf:"url"`
-}
-
 // StorageConfig type embed the storage providers configuration.
 type StorageConfig struct {
-	Database pg.Config   `koanf:"database"`
-	Cache    CacheConfig `koanf:"cache"`
+	Database pg.Config    `koanf:"database"`
+	Cache    redis.Config `koanf:"cache"`
 }
 
 // ServiceConfig type represent the service configuration.
