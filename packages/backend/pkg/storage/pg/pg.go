@@ -205,6 +205,12 @@ func (s *Storage) Name() string {
 	return s.cfg.ServiceName
 }
 
+func (s *Storage) SetServiceID(serviceID serviceloader.UUID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.serviceID = serviceID
+}
+
 func (s *Storage) healthLoop(ctx context.Context) {
 	defer s.wg.Done()
 
@@ -233,10 +239,4 @@ func (s *Storage) healthLoop(ctx context.Context) {
 			}
 		}
 	}
-}
-
-func (s *Storage) SetServiceID(serviceID serviceloader.UUID) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.serviceID = serviceID
 }
