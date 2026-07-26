@@ -4,11 +4,11 @@
 package handler
 
 import (
-	"dockzilla/internal/core/sample"
 	"errors"
 	"log/slog"
 	"net/http"
 
+	"dockzilla/internal/core/sample"
 	"github.com/gin-gonic/gin"
 )
 

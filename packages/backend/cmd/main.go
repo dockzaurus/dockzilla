@@ -5,17 +5,16 @@ package main
 
 import (
 	"context"
-	"dockzilla/internal/infra/storage/postgres"
 	"fmt"
 	"os"
 
 	"dockzilla/internal/core"
 	"dockzilla/internal/core/sample"
+	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
-
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
 )
@@ -43,8 +42,15 @@ func run(ctx context.Context) error {
 		"version", cfg.Service.Version,
 	)
 
-	db := postgres.New(cfg.Storage.Database.URL, postgres.WithApplicationName(cfg.Service.Name))
-	_ = postgres.NewTransactor(db)
+	store, err := postgres.NewStorage(
+		postgres.WithLogger(logger),
+		postgres.WithConfig(&cfg.Storage.Database),
+	)
+	if err != nil {
+		return fmt.Errorf("create postgres storage: %w", err)
+	}
+
+	_ = postgres.NewTransactor(store.DB())
 
 	sampleUseCase, err := sample.New(sample.WithLogger(logger))
 	if err != nil {
@@ -71,7 +77,7 @@ func run(ctx context.Context) error {
 
 	app := core.NewApplication(
 		core.WithLogger(logger),
-		core.WithApplicationHandler(httpServer),
+		core.WithApplicationHandler(httpServer, store),
 	)
 
 	serviceloader.New(
