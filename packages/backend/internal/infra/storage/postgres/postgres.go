@@ -4,6 +4,7 @@ package postgres
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
@@ -18,7 +19,13 @@ type optionFunc func(bun.IDB)
 
 func (f optionFunc) apply(idb bun.IDB) { f(idb) }
 
-func New(dsn string, opts ...Option) bun.IDB {
+func WithApplicationName(appName string) Option {
+	return optionFunc(func(db bun.IDB) {
+		fmt.Println("WithApplicationName:", appName)
+	})
+}
+
+func New(dsn string, opts ...Option) *bun.DB {
 	connector := pgdriver.NewConnector(pgdriver.WithDSN(dsn))
 	sqlDB := sql.OpenDB(connector)
 

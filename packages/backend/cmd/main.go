@@ -43,7 +43,7 @@ func run(ctx context.Context) error {
 		"version", cfg.Service.Version,
 	)
 
-	db := postgres.New(cfg.Storage.Database.URL)
+	db := postgres.New(cfg.Storage.Database.URL, postgres.WithApplicationName(cfg.Service.Name))
 	_ = postgres.NewTransactor(db)
 
 	sampleUseCase, err := sample.New(sample.WithLogger(logger))
@@ -52,7 +52,7 @@ func run(ctx context.Context) error {
 	}
 
 	sampleHandler, err := handler.NewSample(
-		handler.WithService(sampleUseCase),
+		handler.WithHandler(sampleUseCase),
 		handler.WithLogger(logger),
 	)
 	if err != nil {

@@ -9,6 +9,8 @@ import (
 	"log/slog"
 )
 
+var _ Handler = (*UseCase)(nil)
+
 // UseCase implements the sample greeting logic. The zero value is not usable;
 // build one with New.
 type UseCase struct {
