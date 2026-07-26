@@ -17,7 +17,6 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
-
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
@@ -36,10 +35,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	if cfg.HTTP.Telemetry.Enabled {
-		if err := telemetry.Init(ctx, cfg.Service.Name, cfg.Service.Version, cfg.HTTP.Telemetry); err != nil {
-			return fmt.Errorf("init telemetry: %w", err)
-		}
+	if err = telemetry.Init(
+		ctx,
+		cfg.Service.Name,
+		cfg.Service.Version,
+		cfg.HTTP.Telemetry,
+	); err != nil {
+		return fmt.Errorf("init telemetry: %w", err)
 	}
 
 	logger, err := glog.New(
