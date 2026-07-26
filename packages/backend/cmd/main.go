@@ -6,6 +6,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"dockzilla/internal/core"
@@ -16,6 +17,7 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
+	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
 )
@@ -33,7 +35,25 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	logger, err := glog.NewDefault()
+	if err = telemetry.Init(
+		ctx,
+		cfg.Service.Name,
+		cfg.Service.Version,
+		cfg.HTTP.Telemetry,
+	); err != nil {
+		return fmt.Errorf("init telemetry: %w", err)
+	}
+
+	logger, err := glog.New(
+		glog.WithLevel(slog.LevelDebug),
+		glog.WithTextFormat(),
+		glog.WithStyle(
+			glog.WithErrorStyle(),
+		),
+		glog.WithHandler(
+			telemetry.LogHandler(cfg.Service.Name),
+		),
+	)
 	if err != nil {
 		return fmt.Errorf("create logger: %w", err)
 	}
