@@ -4,26 +4,18 @@
 package handler
 
 import (
-	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 
+	"dockzilla/internal/core/sample"
 	"github.com/gin-gonic/gin"
 )
-
-// SampleService is the slice of the sample use case that Sample calls. It is
-// declared here, by the consumer, so the transport never depends on more of the
-// core than it uses.
-type SampleService interface {
-	SayHello(ctx context.Context, name string) (string, error)
-	SendHello(ctx context.Context, name string) error
-}
 
 // Sample serves the sample endpoints. The zero value is not usable; build one
 // with NewSample.
 type Sample struct {
-	service SampleService
+	service sample.Handler
 	logger  *slog.Logger
 }
 
@@ -39,9 +31,9 @@ type optionFunc func(*Sample)
 
 func (f optionFunc) apply(s *Sample) { f(s) }
 
-// WithService sets the use case the handler delegates to. It is required:
+// WithHandler sets the use case the handler delegates to. It is required:
 // NewSample fails when no service is provided.
-func WithService(service SampleService) Option {
+func WithHandler(service sample.Handler) Option {
 	return optionFunc(func(s *Sample) {
 		s.service = service
 	})

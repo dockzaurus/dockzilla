@@ -10,6 +10,8 @@ import (
 
 	"dockzilla/internal/core"
 	"dockzilla/internal/core/sample"
+	"dockzilla/internal/infra/storage/cache"
+	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
@@ -41,13 +43,31 @@ func run(ctx context.Context) error {
 		"version", cfg.Service.Version,
 	)
 
+	store, err := postgres.NewStorage(
+		postgres.WithLogger(logger),
+		postgres.WithConfig(&cfg.Storage.Database),
+	)
+	if err != nil {
+		return fmt.Errorf("create postgres storage: %w", err)
+	}
+
+	_ = postgres.NewTransactor(store.DB())
+
+	cacheStore, err := cache.NewStorage(
+		cache.WithLogger(logger),
+		cache.WithConfig(&cfg.Storage.Cache),
+	)
+	if err != nil {
+		return fmt.Errorf("create redis cache: %w", err)
+	}
+
 	sampleUseCase, err := sample.New(sample.WithLogger(logger))
 	if err != nil {
 		return fmt.Errorf("create sample use case: %w", err)
 	}
 
 	sampleHandler, err := handler.NewSample(
-		handler.WithService(sampleUseCase),
+		handler.WithHandler(sampleUseCase),
 		handler.WithLogger(logger),
 	)
 	if err != nil {
@@ -66,7 +86,7 @@ func run(ctx context.Context) error {
 
 	app := core.NewApplication(
 		core.WithLogger(logger),
-		core.WithApplicationHandler(httpServer),
+		core.WithApplicationHandler(httpServer, store, cacheStore),
 	)
 
 	serviceloader.New(
