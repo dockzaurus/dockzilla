@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"dockzilla/internal/infra/storage/postgres"
 	"fmt"
 	"os"
 
@@ -14,6 +15,7 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
+
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
 )
@@ -40,6 +42,9 @@ func run(ctx context.Context) error {
 		"name", cfg.Service.Name,
 		"version", cfg.Service.Version,
 	)
+
+	db := postgres.New(cfg.Storage.Database.URL)
+	_ = postgres.NewTransactor(db)
 
 	sampleUseCase, err := sample.New(sample.WithLogger(logger))
 	if err != nil {
