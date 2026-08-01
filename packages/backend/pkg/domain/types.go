@@ -8,9 +8,6 @@ import (
 	"context"
 )
 
-// UUID is the identifier assigned to every running service.
-type UUID [16]byte
-
 // Service is the contract implemented by anything the application can run: an
 // HTTP transport, a worker pool, a scheduler. Implementations must be safe to
 // Stop even if Run failed.

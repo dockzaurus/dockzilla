@@ -6,8 +6,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=database-dev
-      - POSTGRES_USER=dev
+      - POSTGRES_DB=dockzilla-database-dev
+      - POSTGRES_USER=dev@dockzilla
       - POSTGRES_PASSWORD=dev_password_123
       - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     restart: unless-stopped
