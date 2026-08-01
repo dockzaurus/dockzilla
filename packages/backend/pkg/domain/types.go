@@ -9,6 +9,8 @@ import (
 )
 
 // UUID is the identifier assigned to every running service.
+//
+//nolint:recvcheck // sql.Scanner and json.Unmarshaler require pointer receivers.
 type UUID [16]byte
 
 // Service is the contract implemented by anything the application can run: an

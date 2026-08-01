@@ -37,7 +37,8 @@ type Apps struct {
 	CreatedAt time.Time `bun:"created_at,nullzero,notnull,default:now()"`
 	UpdatedAt time.Time `bun:"updated_at,nullzero,notnull,default:now()"`
 
-	Host               *Hosts               `bun:"rel:belongs-to,join:host_id=identifier"`
+	Host *Hosts `bun:"rel:belongs-to,join:host_id=identifier"`
+	//nolint:lll // a bun relation tag cannot be wrapped onto a second line.
 	RegistryCredential *RegistryCredentials `bun:"rel:belongs-to,join:registry_credential_id=identifier"`
 	Deployments        []*Deployments       `bun:"rel:has-many,join:identifier=app_id"`
 	EnvVars            []*AppEnvVars        `bun:"rel:has-many,join:identifier=app_id"`

@@ -77,6 +77,7 @@ func (u UUID) IsZero() bool {
 // text and PostgreSQL parses that form unambiguously.
 func (u UUID) Value() (driver.Value, error) {
 	if u.IsZero() {
+		//nolint:nilnil // driver.Valuer encodes a SQL NULL as (nil, nil).
 		return nil, nil
 	}
 
