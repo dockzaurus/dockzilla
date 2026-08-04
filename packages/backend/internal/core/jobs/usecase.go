@@ -41,7 +41,7 @@ func New(opts ...UCOption) (*UseCase, error) {
 	return uc, nil
 }
 
-func (uc *UseCase) Enqueue(ctx context.Context, kind domain.Kind, payload domain.Payload, options ...domain.JobOptions) error {
+func (uc *UseCase) Enqueue(ctx context.Context, kind domain.Kind, payload domain.Payload, options ...JobOptions) error {
 	uc.logger.InfoContext(ctx, "starting enqueuing job")
 	return nil
 }

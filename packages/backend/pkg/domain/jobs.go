@@ -1,21 +1,38 @@
 package domain
 
 import (
+	"context"
 	"encoding/json"
-	"time"
+	"fmt"
 )
 
-type Payload json.RawMessage
-type Key string
+type Payload = json.RawMessage
 
-func (p Payload) isValidSize() bool {
-	size := len(p)
-	if size > MaxPayloadSize || size <= 0 {
+func IsPayloadValid(payload []byte) bool {
+	pSize := len(payload)
+
+	if pSize < 1 {
+		return false
+	}
+
+	if pSize > MaxPayloadSize {
 		return false
 	}
 
 	return true
 }
+func NewPayload(b []byte) (Payload, error) {
+	// allocate every new even if wrong here ......
+	p := Payload(b)
+
+	if !IsPayloadValid(p) {
+		return nil, fmt.Errorf("invalid payload")
+	}
+
+	return p, nil
+}
+
+type Key string
 
 type Kind string
 
@@ -42,12 +59,4 @@ type Message struct {
 	Attempts uint32
 }
 
-type JobConfig struct {
-	RunAfter    time.Time
-	MaxAttempts int32
-	UniqueKey   Key
-}
-
-type JobOptions interface {
-	apply(*JobConfig)
-}
+type Dispatch func(context.Context, Message) error
