@@ -50,6 +50,7 @@ func WithRepository(repo Repository) UCOption {
 	})
 }
 
+// WithGenerator sets the uuid generator.
 func WithGenerator(generator domain.Generator) UCOption {
 	return ucOptionFunc(func(c *UseCase) {
 		c.generator = generator
@@ -73,7 +74,9 @@ func New(opts ...UCOption) (*UseCase, error) {
 	if uc.repo == nil {
 		return nil, errors.New("jobs use case: repository is required")
 	}
-
+	if uc.generator == nil {
+		return nil, errors.New("jobs use case: generator is required")
+	}
 	return uc, nil
 }
 
