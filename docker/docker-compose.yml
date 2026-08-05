@@ -1,6 +1,38 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    build: ./postgres
+    # pg_cron runs a background worker, so it has to be preloaded at server
+    # start; CREATE EXTENSION alone is not enough. Passing the settings here
+    # rather than in a mounted postgresql.conf keeps the configuration in one
+    # file and out of the volume.
+    #
+    # cron.database_name defaults to "postgres" and must name the database the
+    # extension is created in, which for us is the one 00001_init-db.up.sql runs
+    # against. Supabase never sets this to anything else because their
+    # application database is itself named postgres.
+    #
+    # cron.host is the setting that is easy to miss. To run a job pg_cron opens
+    # a libpq connection to cron.host, which defaults to localhost — a TCP
+    # connection, matched by the "host ... scram-sha-256" line in pg_hba.conf,
+    # and pg_cron has no password to offer. Every run then records "connection
+    # failed" while the scheduler itself looks perfectly healthy. Pointing it at
+    # the socket directory instead matches "local all all trust", which the
+    # image already writes; POSTGRES_INITDB_ARGS below only hardens host auth.
+    #
+    # Supabase solves the same problem from the other end, by trusting
+    # 127.0.0.1 and ::1 in pg_hba.conf. That needs a pg_hba edit and opens
+    # passwordless access to every database over loopback, so the socket is the
+    # smaller change. cron.use_background_workers=on is the third way out: it
+    # drops the connection entirely, at the cost of a max_worker_processes slot
+    # per running job, shared with parallel query.
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=dockzilla-database-dev
+      - -c
+      - cron.host=/var/run/postgresql
     ports:
       - "5432:5432"
     volumes:
