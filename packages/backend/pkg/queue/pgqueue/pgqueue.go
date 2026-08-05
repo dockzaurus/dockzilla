@@ -42,7 +42,7 @@ func WithLogger(logger *slog.Logger) Option {
 // WithQueue sets the queue name (e.g., "dckz"). Required.
 func WithQueue(name string) Option {
 	return optionFunc(func(s *Queue) {
-		s.queue = name
+		s.name = name
 	})
 }
 
@@ -74,7 +74,7 @@ func New(opts ...Option) (*Queue, error) {
 	if q.logger == nil {
 		return nil, errors.New("pgqueue: logger is required")
 	}
-	if q.queue == "" {
+	if q.name == "" {
 		return nil, errors.New("pgqueue: queue name is required")
 	}
 	if q.consumer == "" {
@@ -108,16 +108,27 @@ func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload 
 // cancelled or the substrate dies.
 func (q *Queue) Consume(
 	ctx context.Context,
-	handlers map[string]func(ctx context.Context, payload []byte, attempt int) error,
+	handlers map[domain.Kind]func(ctx context.Context, payload []byte, attempt int) error,
 ) error {
 	q.logger.InfoContext(ctx, "starting consume loop",
-		"queue", q.queue,
+		"queue", q.name,
 		"consumer", q.consumer,
 	)
-	q.client.NewConsumer()
-	// TODO: c := q.client.NewConsumer(...); c.Handle per kind; c.Start(ctx)
-	<-ctx.Done()
-	return fmt.Errorf("consume queue: %w", ctx.Err())
+	c := q.client.NewConsumer(q.consumer, q.name,
+		pgque.WithPollInterval(q.tick),
+	)
+
+	for k, h := range handlers {
+		c.Handle(string(k), func(ctx context.Context, msg pgque.Message) error {
+			attempt := 0
+			if msg.RetryCount != nil {
+				attempt = *msg.RetryCount
+			}
+			return h(ctx, []byte(msg.Payload), attempt)
+		})
+	}
+
+	return c.Start(ctx)
 }
 
 // RunTicker drives pgque.ticker() at q.tick intervals until ctx is cancelled.
@@ -135,7 +146,9 @@ func (q *Queue) RunTicker(ctx context.Context) error {
 		case <-ctx.Done():
 			return fmt.Errorf("run ticker: %w", ctx.Err())
 		case <-t.C:
-			// TODO: if _, err := q.client.Ticker(ctx, q.queue); err != nil { log }
+			if _, err := q.client.Ticker(ctx, q.name); err != nil {
+				q.logger.ErrorContext(ctx, "failed to run ticker", err)
+			}
 		}
 	}
 }
