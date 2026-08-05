@@ -3,19 +3,12 @@
 version: '3'
 
 vars:
-  GREETING: Hello, world!
   BACKEND_DIR: packages/backend
   BIN_DIR: bin
   BIN_NAME: backend
   FRONTEND_DIR: packages/frontend
 
 tasks:
-  default:
-    desc: Print a greeting message
-    cmds:
-      - echo "{{.GREETING}}"
-    silent: true
-
   backend:dev:
     desc: Run the backend locally (APP_ENV=local)
     dir: '{{.BACKEND_DIR}}'
@@ -53,10 +46,29 @@ tasks:
     desc: Everything CI runs for the backend — build, vet, lint, test
     dir: '{{.BACKEND_DIR}}'
     cmds:
+      - ./scripts/vendor-pgque.sh --verify
       - go build ./...
       - go vet ./...
       - golangci-lint run
       - go test -race ./...
+
+  backend:pgque:vendor:
+    desc: 'Re-fetch the vendored PgQue schema; pass a tag to upgrade the pin: task backend:pgque:vendor -- v0.3.0'
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - ./scripts/vendor-pgque.sh {{.CLI_ARGS}}
+
+  backend:pgque:verify:
+    desc: Check the vendored PgQue schema against its pinned checksum
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - ./scripts/vendor-pgque.sh --verify
+
+  backend:pgque:install:
+    desc: Apply the vendored PgQue schema to DATABASE_URL, then assert the installed version
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - ./scripts/vendor-pgque.sh --install
 
   frontend:dev:
     desc: Run the frontend dev server
