@@ -30,7 +30,6 @@ DROP TABLE IF EXISTS
   apps,
   registry_credentials,
   hosts,
-  jobs,
   auth_events,
   setup_claims,
   api_tokens,
@@ -48,7 +47,6 @@ CASCADE;
 -- ---------------------------------------------------------------------------
 
 DROP TYPE IF EXISTS
-  job_status,
   deployment_trigger,
   deployment_status,
   app_desired_state,
