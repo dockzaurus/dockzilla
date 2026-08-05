@@ -2,61 +2,107 @@ package jobs
 
 import (
 	"context"
-	"dockzilla/pkg/domain"
+	"errors"
+	"fmt"
 	"log/slog"
-	"sync"
+	"time"
+
+	"dockzilla/pkg/domain"
 )
 
 var _ Handler = (*UseCase)(nil)
 
+// UseCase implements the job engine's enqueue surface. The zero value is not
+// usable; build one with New.
 type UseCase struct {
 	logger *slog.Logger
+	repo   Repository
 
-	mu     sync.Mutex
-	cancel context.CancelFunc
+	generator domain.Generator
+	registry  map[domain.Kind]entry
 }
 
+type entry struct {
+	timeout time.Duration
+	run     func(ctx context.Context, payload domain.Payload) error
+}
+
+// UCOption configures a UseCase during construction.
 type UCOption interface {
-	apply(*UseCase)
+	apply(u *UseCase)
 }
 
 type ucOptionFunc func(*UseCase)
 
 func (f ucOptionFunc) apply(u *UseCase) { f(u) }
 
+// WithLogger sets the structured logger.
 func WithLogger(logger *slog.Logger) UCOption {
 	return ucOptionFunc(func(c *UseCase) {
 		c.logger = logger
 	})
 }
 
-// New create a new Jobs UseCase Instance.
+// WithRepository sets the queue substrate adapter. Required.
+func WithRepository(repo Repository) UCOption {
+	return ucOptionFunc(func(c *UseCase) {
+		c.repo = repo
+	})
+}
+
+func WithGenerator(generator domain.Generator) UCOption {
+	return ucOptionFunc(func(c *UseCase) {
+		c.generator = generator
+	})
+}
+
+// New builds a UseCase from opts, returning an error when a required option is
+// missing so a caller never receives a partially initialised UseCase.
 func New(opts ...UCOption) (*UseCase, error) {
-	uc := new(UseCase)
+	uc := &UseCase{
+		registry: make(map[domain.Kind]entry),
+	}
 
 	for _, opt := range opts {
 		opt.apply(uc)
 	}
 
+	if uc.logger == nil {
+		return nil, errors.New("jobs use case: logger is required")
+	}
+	if uc.repo == nil {
+		return nil, errors.New("jobs use case: repository is required")
+	}
+
 	return uc, nil
 }
 
-func (uc *UseCase) Enqueue(ctx context.Context, kind domain.Kind, payload domain.Payload, options ...JobOptions) error {
-	uc.logger.InfoContext(ctx, "starting enqueuing job")
-	return nil
-}
+// Enqueue schedules kind with payload for async execution. It joins the
+// caller's transaction, so both the domain write and the enqueue commit
+// together or neither commits.
+func (uc *UseCase) Enqueue(
+	ctx context.Context,
+	kind domain.Kind,
+	payload domain.Payload,
+	opts ...domain.JobOption,
+) error {
+	identifier := uc.generator()
+	msg := domain.Message{
+		Header: domain.HeaderFrame{
+			Identifier: identifier,
+			Kind:       kind,
+		},
+		Payload: payload,
+	}
 
-func (uc *UseCase) Ack(ctx context.Context, messages []domain.Message) ([]string, error) {
-	uc.logger.InfoContext(ctx, "starting acknowledging job")
-	return nil, nil
-}
+	uc.logger.DebugContext(ctx, "enqueuing job",
+		"kind", string(kind),
+		"message_id", msg.Header.Identifier.String(),
+	)
 
-func (uc *UseCase) Dequeue(ctx context.Context, kind domain.Kind) error {
-	uc.logger.InfoContext(ctx, "starting dequeuing job")
-	return nil
-}
+	if err := uc.repo.Insert(ctx, msg, opts...); err != nil {
+		return fmt.Errorf("insert job: %w", err)
+	}
 
-func (uc *UseCase) Fail(ctx context.Context, message domain.Message, b bool) error {
-	uc.logger.InfoContext(ctx, "starting failing process job")
 	return nil
 }

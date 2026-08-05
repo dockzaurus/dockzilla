@@ -3,60 +3,104 @@ package domain
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"time"
 )
 
+var (
+	// ErrPayloadTooLarge is returned when a job payload exceeds MaxPayloadSize.
+	ErrPayloadTooLarge = errors.New("payload exceeds maximum size")
+	// ErrPayloadEmpty is returned when a job payload is empty.
+	ErrPayloadEmpty = errors.New("payload cannot be empty")
+)
+
+// Payload is the job argument blob, bounded at MaxPayloadSize.
 type Payload = json.RawMessage
 
-func IsPayloadValid(payload []byte) bool {
-	pSize := len(payload)
-
-	if pSize < 1 {
-		return false
-	}
-
-	if pSize > MaxPayloadSize {
-		return false
-	}
-
-	return true
-}
+// NewPayload validates and returns a Payload, or an error if the size is invalid.
 func NewPayload(b []byte) (Payload, error) {
-	// allocate every new even if wrong here ......
-	p := Payload(b)
-
-	if !IsPayloadValid(p) {
-		return nil, fmt.Errorf("invalid payload")
+	if len(b) > MaxPayloadSize {
+		return nil, ErrPayloadTooLarge
 	}
-
-	return p, nil
+	if len(b) == 0 {
+		return nil, ErrPayloadEmpty
+	}
+	return Payload(b), nil
 }
 
+// Key is a serialization key for per-resource job uniqueness.
 type Key string
 
+// Kind identifies the job type and routes to a registered handler.
 type Kind string
 
-// TODO: think about granularity to build the payload.
 const (
-	RunDeployment  Kind = "deployment.run"
-	StopDeployment Kind = "deployment.stop"
+	// RunDeployment pulls an image, creates a container, starts it, waits for
+	// health, swaps the proxy, and stops the old container.
+	RunDeployment Kind = "deployment.run"
 
-	StartApp   Kind = "app.start"
-	StopApp    Kind = "app.stop"
+	// StartApp starts an app container.
+	StartApp Kind = "app.start"
+	// StopApp stops an app container.
+	StopApp Kind = "app.stop"
+	// RestartApp restarts an app container.
 	RestartApp Kind = "app.restart"
 )
 
-// HeaderFrame represent the Header data sent to the queue.
+// HeaderFrame carries job metadata.
 type HeaderFrame struct {
 	Identifier UUID
 	Kind       Kind
 }
 
-// Message type represent the block sent to the queue.
+// Message is the unit enqueued into and received from the job queue.
 type Message struct {
 	Header   HeaderFrame
 	Payload  Payload
 	Attempts uint32
 }
 
-type Dispatch func(context.Context, Message) error
+// JobConfig holds optional parameters for job enqueueing.
+type JobConfig struct {
+	RunAfter    time.Time
+	MaxAttempts int32
+	UniqueKey   Key
+}
+
+// JobOption configures a JobConfig during enqueueing.
+type JobOption interface {
+	apply(c *JobConfig)
+}
+
+type jobOptionFunc func(*JobConfig)
+
+func (f jobOptionFunc) apply(c *JobConfig) { f(c) }
+
+// WithRunAfter schedules the job to run no earlier than t.
+func WithRunAfter(t time.Time) JobOption {
+	return jobOptionFunc(func(c *JobConfig) { c.RunAfter = t })
+}
+
+// WithMaxAttempts sets the retry limit before dead-lettering.
+func WithMaxAttempts(n int32) JobOption {
+	return jobOptionFunc(func(c *JobConfig) { c.MaxAttempts = n })
+}
+
+// WithUniqueKey serializes jobs with the same key — only one runs at a time.
+func WithUniqueKey(k Key) JobOption {
+	return jobOptionFunc(func(c *JobConfig) { c.UniqueKey = k })
+}
+
+// NewJobConfig applies opts and returns the config with defaults.
+func NewJobConfig(opts ...JobOption) JobConfig {
+	c := JobConfig{MaxAttempts: 3}
+	for _, o := range opts {
+		o.apply(&c)
+	}
+	return c
+}
+
+// Dispatch is called per job by the consume loop. A nil return acks the job;
+// a Terminal error dead-letters it immediately; any other error retries with
+// backoff until attempts are exhausted, then dead-letters.
+type Dispatch func(ctx context.Context, msg Message) error
