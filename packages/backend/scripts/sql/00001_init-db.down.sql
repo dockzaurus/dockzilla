@@ -4,6 +4,7 @@
 --   1. tables
 --   2. enum types
 --   3. shared functions
+--   4. extensions
 --
 -- Sections 3, 4 and 5 of the up file (indexes, foreign keys, updated_at
 -- triggers) have no counterpart here: DROP TABLE takes all three with it.
@@ -60,3 +61,16 @@ DROP TYPE IF EXISTS
 -- ---------------------------------------------------------------------------
 
 DROP FUNCTION IF EXISTS set_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- 4. Extensions
+--
+-- Last, because dropping pg_cron takes the cron schema with it, and any job
+-- PgQue scheduled lives in cron.job. No CASCADE: a dependency on the cron
+-- schema from outside this file should fail loudly.
+--
+-- This leaves shared_preload_libraries alone, so the extension can be created
+-- again without restarting the server.
+-- ---------------------------------------------------------------------------
+
+DROP EXTENSION IF EXISTS pg_cron;
