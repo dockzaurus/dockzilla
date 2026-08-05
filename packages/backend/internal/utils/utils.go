@@ -4,7 +4,6 @@ package utils
 
 import (
 	"dockzilla/pkg/domain"
-
 	"github.com/google/uuid"
 	serviceloader "github.com/zixyos/goloader/service"
 )
