@@ -3,20 +3,22 @@ package pgqueue
 
 import (
 	"context"
+	"dockzilla/pkg/domain"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"github.com/NikolayS/pgque-go"
 	"github.com/uptrace/bun"
 )
 
 // Queue wraps pgque-go for Dockzilla's job engine. The zero value is not
 // usable; build one with New.
 type Queue struct {
-	// TODO: hold the *pgque.Client here once the client is wired.
 	logger   *slog.Logger
-	queue    string
+	client   *pgque.Client
+	name     string
 	consumer string
 	tick     time.Duration
 }
@@ -90,8 +92,15 @@ func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload 
 		"event_type", eventType,
 		"payload_size", len(payload),
 	)
-	// TODO: _, err := db.ExecContext(ctx, `select pgque.send(?, ?, ?::jsonb)`,
-	// q.queue, eventType, payload)
+
+	ev := newEvent(payload, eventType)
+	eventID, err := q.client.Send(ctx, q.name, *ev)
+	if err != nil {
+		q.logger.WarnContext(ctx, "failed to send event to queue", "error", err)
+		return err
+	}
+
+	q.logger.DebugContext(ctx, "sent event to queue", "event_id", eventID)
 	return nil
 }
 
@@ -105,6 +114,7 @@ func (q *Queue) Consume(
 		"queue", q.queue,
 		"consumer", q.consumer,
 	)
+	q.client.NewConsumer()
 	// TODO: c := q.client.NewConsumer(...); c.Handle per kind; c.Start(ctx)
 	<-ctx.Done()
 	return fmt.Errorf("consume queue: %w", ctx.Err())
@@ -127,5 +137,12 @@ func (q *Queue) RunTicker(ctx context.Context) error {
 		case <-t.C:
 			// TODO: if _, err := q.client.Ticker(ctx, q.queue); err != nil { log }
 		}
+	}
+}
+
+func newEvent(p domain.Payload, eventType string) *pgque.Event {
+	return &pgque.Event{
+		Payload: p,
+		Type:    eventType,
 	}
 }
