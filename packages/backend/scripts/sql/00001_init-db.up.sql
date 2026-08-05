@@ -62,8 +62,7 @@ BEGIN
       ('app_desired_state',    ARRAY['running', 'stopped']),
       ('deployment_status',    ARRAY['queued', 'pulling', 'starting', 'running',
                                      'failed', 'superseded']),
-      ('deployment_trigger',   ARRAY['api', 'cli', 'webhook', 'rollback']),
-      ('job_status',           ARRAY['pending', 'running', 'succeeded', 'failed'])
+      ('deployment_trigger',   ARRAY['api', 'cli', 'webhook', 'rollback'])
     ) AS src(type_name, labels)
   LOOP
     IF to_regtype(e.type_name) IS NULL THEN
@@ -304,27 +303,6 @@ CREATE TABLE IF NOT EXISTS app_volumes (
   UNIQUE (app_id, mount_path)
 );
 
-CREATE TABLE IF NOT EXISTS jobs (
-  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  identifier UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
-
-  -- Open set, one value per job kind, so no enum type.
-  kind VARCHAR(127) NOT NULL,
-  payload JSONB NOT NULL,
-  status job_status NOT NULL DEFAULT 'pending',
-
-  attempts INTEGER NOT NULL DEFAULT 0,
-  max_attempts INTEGER NOT NULL DEFAULT 3,
-
-  run_after TIMESTAMPTZ NOT NULL DEFAULT now(),
-  locked_at TIMESTAMPTZ,
-  locked_by VARCHAR(255),
-  last_error TEXT,
-
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 -- ---------------------------------------------------------------------------
 -- 3. Indexes
 --
@@ -366,9 +344,6 @@ CREATE INDEX IF NOT EXISTS deployments_triggered_by_user_id_idx
 
 CREATE INDEX IF NOT EXISTS app_env_vars_app_id_idx ON app_env_vars (app_id);
 CREATE INDEX IF NOT EXISTS app_volumes_app_id_idx ON app_volumes (app_id);
-
--- Supports the FOR UPDATE SKIP LOCKED claim query.
-CREATE INDEX IF NOT EXISTS jobs_claim_idx ON jobs (run_after) WHERE status = 'pending';
 
 -- ---------------------------------------------------------------------------
 -- 4. Foreign keys
@@ -425,8 +400,8 @@ END $$;
 -- ---------------------------------------------------------------------------
 -- 5. updated_at triggers
 --
--- The trigger rather than application code, because jobs, the reconciler and
--- the health engine all write rows without passing through a handler.
+-- The trigger rather than application code, because the reconciler and the
+-- health engine both write rows without passing through a handler.
 --
 -- DROP then CREATE, because CREATE OR REPLACE TRIGGER needs PostgreSQL 14 and
 -- CREATE TRIGGER has no IF NOT EXISTS.
@@ -447,8 +422,7 @@ BEGIN
       'apps',
       'deployments',
       'app_env_vars',
-      'app_volumes',
-      'jobs'
+      'app_volumes'
     ])
   LOOP
     EXECUTE format(

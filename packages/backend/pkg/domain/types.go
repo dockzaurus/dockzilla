@@ -8,6 +8,9 @@ import (
 	"context"
 )
 
+// MaxPayloadSize is the maximum size in bytes for a job payload.
+const MaxPayloadSize = 16 << 20
+
 // Service is the contract implemented by anything the application can run: an
 // HTTP transport, a worker pool, a scheduler. Implementations must be safe to
 // Stop even if Run failed.
@@ -22,3 +25,6 @@ type Service interface {
 	// Name identifies the service in logs.
 	Name() string
 }
+
+// Generator is the domain UUID generator interface.
+type Generator func() UUID

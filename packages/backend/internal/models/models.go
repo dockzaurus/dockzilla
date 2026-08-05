@@ -97,14 +97,6 @@ const (
 	TriggeredByRollback = "rollback"
 )
 
-// jobs.status values, enum type job_status.
-const (
-	JobPending   = "pending"
-	JobRunning   = "running"
-	JobSucceeded = "succeeded"
-	JobFailed    = "failed"
-)
-
 // auth_events.kind values. An open set that grows with every auditable action,
 // which is why the column is varchar and not an enum type.
 const (
