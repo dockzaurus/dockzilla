@@ -140,7 +140,7 @@ func decode(kind domain.Kind, payload []byte, attempt int) (domain.Message, erro
 
 	attempts := uint32(0)
 	if attempt > 0 {
-		attempts = uint32(attempt)
+		attempts = uint32(attempt) //nolint:gosec // attempts is capped so never reach.
 	}
 
 	return domain.Message{

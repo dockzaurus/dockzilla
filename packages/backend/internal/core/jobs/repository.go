@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"dockzilla/pkg/domain"
-
 	"github.com/uptrace/bun"
 )
 
