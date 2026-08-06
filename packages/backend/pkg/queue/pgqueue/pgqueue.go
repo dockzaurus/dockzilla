@@ -8,15 +8,17 @@ import (
 	"log/slog"
 	"time"
 
+	"dockzilla/pkg/domain"
+	"github.com/NikolayS/pgque-go"
 	"github.com/uptrace/bun"
 )
 
 // Queue wraps pgque-go for Dockzilla's job engine. The zero value is not
 // usable; build one with New.
 type Queue struct {
-	// TODO: hold the *pgque.Client here once the client is wired.
 	logger   *slog.Logger
-	queue    string
+	client   *pgque.Client
+	name     string
 	consumer string
 	tick     time.Duration
 }
@@ -40,7 +42,7 @@ func WithLogger(logger *slog.Logger) Option {
 // WithQueue sets the queue name (e.g., "dckz"). Required.
 func WithQueue(name string) Option {
 	return optionFunc(func(s *Queue) {
-		s.queue = name
+		s.name = name
 	})
 }
 
@@ -51,10 +53,22 @@ func WithConsumer(name string) Option {
 	})
 }
 
-// WithTick sets the ticker interval. Defaults to 500ms.
+// WithTick sets the ticker interval. A non-positive duration keeps the 500ms
+// default, so an omitted config value cannot produce a zero interval — which
+// time.NewTicker panics on.
 func WithTick(d time.Duration) Option {
 	return optionFunc(func(s *Queue) {
-		s.tick = d
+		if d > 0 {
+			s.tick = d
+		}
+	})
+}
+
+// WithClient sets the pgque-go client used by Consume and RunTicker. Required.
+// Send deliberately does not use it — it runs on the caller's transaction.
+func WithClient(client *pgque.Client) Option {
+	return optionFunc(func(s *Queue) {
+		s.client = client
 	})
 }
 
@@ -72,26 +86,42 @@ func New(opts ...Option) (*Queue, error) {
 	if q.logger == nil {
 		return nil, errors.New("pgqueue: logger is required")
 	}
-	if q.queue == "" {
+	if q.name == "" {
 		return nil, errors.New("pgqueue: queue name is required")
 	}
 	if q.consumer == "" {
 		return nil, errors.New("pgqueue: consumer name is required")
+	}
+	if q.client == nil {
+		return nil, errors.New("pgqueue: client is required")
 	}
 
 	return q, nil
 }
 
 // Send appends an event to the queue on db. db must be the caller's bun.Tx to
-// join their transaction — the pgque-go client owns a separate pool and cannot
-// join a transaction.
+// join their transaction — the pgque-go client owns a separate pool, so going
+// through it would commit the event on another connection and leave the row
+// behind when the caller rolls back.
+//
+// It calls pgque.send directly rather than Client.Send for exactly that reason.
 func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload []byte) error {
 	q.logger.DebugContext(ctx, "sending message to queue",
 		"event_type", eventType,
 		"payload_size", len(payload),
 	)
-	// TODO: _, err := db.ExecContext(ctx, `select pgque.send(?, ?, ?::jsonb)`,
-	// q.queue, eventType, payload)
+
+	var eventID int64
+	if err := db.NewRaw(
+		"SELECT pgque.send(?, ?, ?::jsonb)", q.name, eventType, string(payload),
+	).Scan(ctx, &eventID); err != nil {
+		q.logger.WarnContext(ctx, "failed to send event to queue", "error", err)
+
+		return fmt.Errorf("send event to queue %q: %w", q.name, err)
+	}
+
+	q.logger.DebugContext(ctx, "sent event to queue", "event_id", eventID)
+
 	return nil
 }
 
@@ -99,15 +129,31 @@ func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload 
 // cancelled or the substrate dies.
 func (q *Queue) Consume(
 	ctx context.Context,
-	handlers map[string]func(ctx context.Context, payload []byte, attempt int) error,
+	handlers map[domain.Kind]func(ctx context.Context, payload []byte, attempt int) error,
 ) error {
 	q.logger.InfoContext(ctx, "starting consume loop",
-		"queue", q.queue,
+		"queue", q.name,
 		"consumer", q.consumer,
 	)
-	// TODO: c := q.client.NewConsumer(...); c.Handle per kind; c.Start(ctx)
-	<-ctx.Done()
-	return fmt.Errorf("consume queue: %w", ctx.Err())
+	c := q.client.NewConsumer(q.consumer, q.name,
+		pgque.WithPollInterval(q.tick),
+	)
+
+	for k, h := range handlers {
+		c.Handle(string(k), func(ctx context.Context, msg pgque.Message) error {
+			attempt := 0
+			if msg.RetryCount != nil {
+				attempt = *msg.RetryCount
+			}
+			return h(ctx, []byte(msg.Payload), attempt)
+		})
+	}
+
+	if err := c.Start(ctx); err != nil {
+		return fmt.Errorf("start consumer %q: %w", q.consumer, err)
+	}
+
+	return nil
 }
 
 // RunTicker drives pgque.ticker() at q.tick intervals until ctx is cancelled.
@@ -125,7 +171,15 @@ func (q *Queue) RunTicker(ctx context.Context) error {
 		case <-ctx.Done():
 			return fmt.Errorf("run ticker: %w", ctx.Err())
 		case <-t.C:
-			// TODO: if _, err := q.client.Ticker(ctx, q.queue); err != nil { log }
+			if _, err := q.client.Ticker(ctx, q.name); err != nil {
+				q.logger.ErrorContext(ctx, "failed to run ticker", "error", err)
+			}
 		}
 	}
+}
+
+// Client exposes the underlying pgque-go client for calls this wrapper does
+// not cover.
+func (q *Queue) Client() *pgque.Client {
+	return q.client
 }
