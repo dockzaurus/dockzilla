@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 
+	"dockzilla/pkg/queue/pgqueue"
 	"dockzilla/pkg/storage/pg"
 	"dockzilla/pkg/storage/redis"
 	"github.com/zixyos/giniservice/http"
@@ -30,9 +31,10 @@ type ServiceConfig struct {
 
 // Config type represent the Application configuration.
 type Config struct {
-	HTTP    http.Config   `koanf:"http"`
-	Service ServiceConfig `koanf:"service"`
-	Storage StorageConfig `koanf:"storage"`
+	HTTP    http.Config    `koanf:"http"`
+	Service ServiceConfig  `koanf:"service"`
+	Storage StorageConfig  `koanf:"storage"`
+	Queue   pgqueue.Config `koanf:"queue"`
 }
 
 // LoadConfig reads the configuration for the current APP_ENV from the embedded

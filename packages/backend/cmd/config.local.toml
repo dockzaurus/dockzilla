@@ -10,6 +10,12 @@ version = "v1"
     service_name = "dockzilla-redis"
     url = "redis://localhost:6379/0"
 
+[queue]
+service_name = "dockzilla-jobs"
+name = "dckz"
+consumer = "dckz-worker"
+tick = "500ms"
+
 [http]
 service_name = "dockzilla-http-api"
 service_version = "v1"

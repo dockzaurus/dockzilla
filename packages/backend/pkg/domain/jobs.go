@@ -12,6 +12,15 @@ var (
 	ErrPayloadTooLarge = errors.New("payload exceeds maximum size")
 	// ErrPayloadEmpty is returned when a job payload is empty.
 	ErrPayloadEmpty = errors.New("payload cannot be empty")
+
+	// ErrNoTransaction is returned by Insert when it is called outside a unit of
+	// work. Enqueueing on the pool instead would commit the job independently of
+	// the domain write it belongs to — the dual write the port exists to prevent.
+	ErrNoTransaction = errors.New("jobs repository: insert requires an ambient transaction")
+
+	// ErrUnsupportedOption is returned when a caller asks for job semantics the
+	// queue substrate cannot provide. Failing beats silently dropping the option.
+	ErrUnsupportedOption = errors.New("jobs repository: option unsupported by pgque")
 )
 
 // Payload is the job argument blob, bounded at MaxPayloadSize.
@@ -46,6 +55,27 @@ const (
 	// RestartApp restarts an app container.
 	RestartApp Kind = "app.restart"
 )
+
+// Envelope is the wire shape written to the queue. pgque.send carries only a
+// type and a payload, so the message identifier travels inside the payload to
+// survive the round trip. Args holds the handler's arguments untouched, so
+// Register[T] still unmarshals exactly what the producer sent.
+type Envelope struct {
+	ID   UUID    `json:"id"`
+	Args Payload `json:"args"`
+}
+
+// AllKinds returns every job kind the engine knows about. Substrates that
+// route by message type need the full set up front to register one handler per
+// kind, so a new Kind constant must be added here to ever be consumed.
+func AllKinds() []Kind {
+	return []Kind{
+		RunDeployment,
+		StartApp,
+		StopApp,
+		RestartApp,
+	}
+}
 
 // HeaderFrame carries job metadata.
 type HeaderFrame struct {

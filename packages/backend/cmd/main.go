@@ -19,6 +19,9 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
+	"dockzilla/pkg/queue/pgqueue"
+
+	"github.com/NikolayS/pgque-go"
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
 	serviceloader "github.com/zixyos/goloader/service"
@@ -96,9 +99,30 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create sample handler: %w", err)
 	}
 
-	jobRepo := repository.NewJobs(
-		repository.JobWithLogger(logger),
+	queueClient, err := pgque.Connect(ctx, cfg.Storage.Database.URL)
+	if err != nil {
+		return fmt.Errorf("connect pgque client: %w", err)
+	}
+	defer queueClient.Close()
+
+	jobQueue, err := pgqueue.New(
+		pgqueue.WithLogger(logger),
+		pgqueue.WithClient(queueClient),
+		pgqueue.WithQueue(cfg.Queue.Name),
+		pgqueue.WithConsumer(cfg.Queue.Consumer),
+		pgqueue.WithTick(cfg.Queue.Tick),
 	)
+	if err != nil {
+		return fmt.Errorf("create job queue: %w", err)
+	}
+
+	jobRepo, err := repository.NewJobs(
+		repository.JobWithLogger(logger),
+		repository.JobWithQueue(jobQueue),
+	)
+	if err != nil {
+		return fmt.Errorf("create job repository: %w", err)
+	}
 
 	jobUC, err := jobs.New(
 		jobs.WithLogger(logger),

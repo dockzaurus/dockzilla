@@ -53,10 +53,22 @@ func WithConsumer(name string) Option {
 	})
 }
 
-// WithTick sets the ticker interval. Defaults to 500ms.
+// WithTick sets the ticker interval. A non-positive duration keeps the 500ms
+// default, so an omitted config value cannot produce a zero interval — which
+// time.NewTicker panics on.
 func WithTick(d time.Duration) Option {
 	return optionFunc(func(s *Queue) {
-		s.tick = d
+		if d > 0 {
+			s.tick = d
+		}
+	})
+}
+
+// WithClient sets the pgque-go client used by Consume and RunTicker. Required.
+// Send deliberately does not use it — it runs on the caller's transaction.
+func WithClient(client *pgque.Client) Option {
+	return optionFunc(func(s *Queue) {
+		s.client = client
 	})
 }
 
@@ -80,27 +92,36 @@ func New(opts ...Option) (*Queue, error) {
 	if q.consumer == "" {
 		return nil, errors.New("pgqueue: consumer name is required")
 	}
+	if q.client == nil {
+		return nil, errors.New("pgqueue: client is required")
+	}
 
 	return q, nil
 }
 
 // Send appends an event to the queue on db. db must be the caller's bun.Tx to
-// join their transaction — the pgque-go client owns a separate pool and cannot
-// join a transaction.
+// join their transaction — the pgque-go client owns a separate pool, so going
+// through it would commit the event on another connection and leave the row
+// behind when the caller rolls back.
+//
+// It calls pgque.send directly rather than Client.Send for exactly that reason.
 func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload []byte) error {
 	q.logger.DebugContext(ctx, "sending message to queue",
 		"event_type", eventType,
 		"payload_size", len(payload),
 	)
 
-	ev := newEvent(payload, eventType)
-	eventID, err := q.client.Send(ctx, q.name, *ev)
-	if err != nil {
+	var eventID int64
+	if err := db.NewRaw(
+		"SELECT pgque.send(?, ?, ?::jsonb)", q.name, eventType, string(payload),
+	).Scan(ctx, &eventID); err != nil {
 		q.logger.WarnContext(ctx, "failed to send event to queue", "error", err)
+
 		return fmt.Errorf("send event to queue %q: %w", q.name, err)
 	}
 
 	q.logger.DebugContext(ctx, "sent event to queue", "event_id", eventID)
+
 	return nil
 }
 
@@ -157,9 +178,8 @@ func (q *Queue) RunTicker(ctx context.Context) error {
 	}
 }
 
-func newEvent(p domain.Payload, eventType string) *pgque.Event {
-	return &pgque.Event{
-		Payload: p,
-		Type:    eventType,
-	}
+// Client exposes the underlying pgque-go client for calls this wrapper does
+// not cover.
+func (q *Queue) Client() *pgque.Client {
+	return q.client
 }
