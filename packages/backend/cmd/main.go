@@ -10,9 +10,11 @@ import (
 	"os"
 
 	"dockzilla/internal/core"
+	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/sample"
 	"dockzilla/internal/infra/storage/cache"
 	"dockzilla/internal/infra/storage/postgres"
+	"dockzilla/internal/infra/storage/postgres/repository"
 	"dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
@@ -94,6 +96,27 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create sample handler: %w", err)
 	}
 
+	jobRepo := repository.NewJobs(
+		repository.JobWithLogger(logger),
+	)
+
+	jobUC, err := jobs.New(
+		jobs.WithLogger(logger),
+		jobs.WithGenerator(utils.Generator),
+		jobs.WithRepository(jobRepo),
+	)
+	if err != nil {
+		return fmt.Errorf("create job uc: %w", err)
+	}
+
+	jobEngine, err := jobs.NewEngine(
+		jobs.WithEngineLogger(logger),
+		jobs.WithUseCase(jobUC),
+	)
+	if err != nil {
+		return fmt.Errorf("create job engine: %w", err)
+	}
+
 	httpServer, err := http.NewServer(
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
@@ -106,7 +129,12 @@ func run(ctx context.Context) error {
 
 	app := core.NewApplication(
 		core.WithLogger(logger),
-		core.WithApplicationHandler(httpServer, store, cacheStore),
+		core.WithApplicationHandler(
+			httpServer,
+			store,
+			cacheStore,
+			jobEngine,
+		),
 	)
 
 	serviceloader.New(

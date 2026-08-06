@@ -5,7 +5,7 @@ version = "v1"
 [storage]
   [storage.database]
     service_name = "dockzilla-postgres"
-    url = "postgres://dev:dev_password_123@localhost:5432/database-dev?sslmode=disable"
+    url = "postgres://dev@dockzilla:dev_password_123@localhost:5432/dockzilla-database-dev?sslmode=disable"
   [storage.cache]
     service_name = "dockzilla-redis"
     url = "redis://localhost:6379/0"

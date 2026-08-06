@@ -3,12 +3,12 @@ package pgqueue
 
 import (
 	"context"
-	"dockzilla/pkg/domain"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
+	"dockzilla/pkg/domain"
 	"github.com/NikolayS/pgque-go"
 	"github.com/uptrace/bun"
 )
@@ -97,7 +97,7 @@ func (q *Queue) Send(ctx context.Context, db bun.IDB, eventType string, payload 
 	eventID, err := q.client.Send(ctx, q.name, *ev)
 	if err != nil {
 		q.logger.WarnContext(ctx, "failed to send event to queue", "error", err)
-		return err
+		return fmt.Errorf("send event to queue %q: %w", q.name, err)
 	}
 
 	q.logger.DebugContext(ctx, "sent event to queue", "event_id", eventID)
@@ -128,7 +128,11 @@ func (q *Queue) Consume(
 		})
 	}
 
-	return c.Start(ctx)
+	if err := c.Start(ctx); err != nil {
+		return fmt.Errorf("start consumer %q: %w", q.consumer, err)
+	}
+
+	return nil
 }
 
 // RunTicker drives pgque.ticker() at q.tick intervals until ctx is cancelled.
@@ -147,7 +151,7 @@ func (q *Queue) RunTicker(ctx context.Context) error {
 			return fmt.Errorf("run ticker: %w", ctx.Err())
 		case <-t.C:
 			if _, err := q.client.Ticker(ctx, q.name); err != nil {
-				q.logger.ErrorContext(ctx, "failed to run ticker", err)
+				q.logger.ErrorContext(ctx, "failed to run ticker", "error", err)
 			}
 		}
 	}
