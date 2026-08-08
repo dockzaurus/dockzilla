@@ -7,7 +7,6 @@ import (
 	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/pkg/domain"
 	"dockzilla/pkg/storage/pg"
-
 	"github.com/stretchr/testify/require"
 )
 

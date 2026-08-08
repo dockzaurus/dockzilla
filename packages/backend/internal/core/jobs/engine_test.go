@@ -8,7 +8,6 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/mocks"
 	"dockzilla/pkg/domain"
-
 	"github.com/stretchr/testify/require"
 )
 
