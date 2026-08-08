@@ -3,24 +3,9 @@ package domain
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"time"
-)
 
-var (
-	// ErrPayloadTooLarge is returned when a job payload exceeds MaxPayloadSize.
-	ErrPayloadTooLarge = errors.New("payload exceeds maximum size")
-	// ErrPayloadEmpty is returned when a job payload is empty.
-	ErrPayloadEmpty = errors.New("payload cannot be empty")
-
-	// ErrNoTransaction is returned by Insert when it is called outside a unit of
-	// work. Enqueueing on the pool instead would commit the job independently of
-	// the domain write it belongs to — the dual write the port exists to prevent.
-	ErrNoTransaction = errors.New("jobs repository: insert requires an ambient transaction")
-
-	// ErrUnsupportedOption is returned when a caller asks for job semantics the
-	// queue substrate cannot provide. Failing beats silently dropping the option.
-	ErrUnsupportedOption = errors.New("jobs repository: option unsupported by pgque")
+	errs "dockzilla/pkg/domain/errors"
 )
 
 // Payload is the job argument blob, bounded at MaxPayloadSize.
@@ -29,10 +14,10 @@ type Payload = json.RawMessage
 // NewPayload validates and returns a Payload, or an error if the size is invalid.
 func NewPayload(b []byte) (Payload, error) {
 	if len(b) > MaxPayloadSize {
-		return nil, ErrPayloadTooLarge
+		return nil, errs.ErrPayloadTooLarge
 	}
 	if len(b) == 0 {
-		return nil, ErrPayloadEmpty
+		return nil, errs.ErrPayloadEmpty
 	}
 	return Payload(b), nil
 }

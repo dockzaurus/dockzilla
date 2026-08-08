@@ -12,6 +12,7 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/pkg/domain"
+	errs "dockzilla/pkg/domain/errors"
 )
 
 var _ jobs.Repository = (*Jobs)(nil)
@@ -80,7 +81,7 @@ func (j *Jobs) Insert(ctx context.Context, msg domain.Message, opts ...domain.Jo
 	// failure, which is what the port requires of every implementation.
 	db := postgres.IDB(ctx, nil)
 	if db == nil {
-		return domain.ErrNoTransaction
+		return errs.ErrNoTransaction
 	}
 
 	body, err := json.Marshal(domain.Envelope{ID: msg.Header.Identifier, Args: msg.Payload})
@@ -134,7 +135,7 @@ func decode(kind domain.Kind, payload []byte, attempt int) (domain.Message, erro
 	var env domain.Envelope
 	if err := json.Unmarshal(payload, &env); err != nil {
 		return domain.Message{}, fmt.Errorf(
-			"decode envelope for %s: %w", kind, jobs.Terminal(err),
+			"decode envelope for %s: %w", kind, errs.Terminal(err),
 		)
 	}
 
@@ -155,11 +156,11 @@ func decode(kind domain.Kind, payload []byte, attempt int) (domain.Message, erro
 
 func checkSupported(cfg domain.JobConfig) error {
 	if !cfg.RunAfter.IsZero() {
-		return fmt.Errorf("%w: run after", domain.ErrUnsupportedOption)
+		return fmt.Errorf("%w: run after", errs.ErrUnsupportedOption)
 	}
 
 	if cfg.UniqueKey != "" {
-		return fmt.Errorf("%w: unique key", domain.ErrUnsupportedOption)
+		return fmt.Errorf("%w: unique key", errs.ErrUnsupportedOption)
 	}
 
 	return nil

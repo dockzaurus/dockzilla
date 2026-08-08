@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"dockzilla/pkg/domain"
+	errs "dockzilla/pkg/domain/errors"
 )
 
 var _ domain.Service = (*Engine)(nil)
@@ -101,7 +102,7 @@ func Register[T any](
 		run: func(ctx context.Context, payload domain.Payload) error {
 			var args T
 			if err := json.Unmarshal(payload, &args); err != nil {
-				return Terminal(fmt.Errorf("decode %s: %w", kind, err))
+				return errs.Terminal(fmt.Errorf("decode %s: %w", kind, err))
 			}
 			return fn(ctx, args)
 		},

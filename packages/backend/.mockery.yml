@@ -1,5 +1,5 @@
 all: false
-dir: "{{.InterfaceDir}}"
+dir: "{{.InterfaceDir}}/mocks"
 filename: mock_{{.InterfaceName}}.go
 force-file-write: true
 formatter: goimports
@@ -7,12 +7,14 @@ include-auto-generated: false
 log-level: info
 structname: "{{.Mock}}{{.InterfaceName}}"
 pkgname: "mocks"
-recursive: false
+recursive: true
 require-template-schema-exists: true
 template: testify
 template-schema: "{{.Template}}.schema.json"
+# Functional-option interfaces (Option, JobOption, EngineOption, UCOption,
+# JobsOption) all declare an unexported apply method, so a mock generated into
+# another package cannot implement them. Skip them.
+include-interface-regex: ".*"
+exclude-interface-regex: "Option$"
 packages:
-  dockzilla/pkg/domain:
-    config:
-      all: true
-      dir: "pkg/domain/mocks/"
+  dockzilla:
