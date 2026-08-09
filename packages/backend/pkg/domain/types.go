@@ -28,3 +28,6 @@ type Service interface {
 
 // Generator is the domain UUID generator interface.
 type Generator func() UUID
+
+// UUIDParser is the domain UUID parser interface.
+type UUIDParser func(str string) (UUID, error)
