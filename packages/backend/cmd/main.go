@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"dockzilla/internal/core/jobs/registry"
 	"fmt"
 	"log/slog"
 	"os"
@@ -20,6 +21,7 @@ import (
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
 	"dockzilla/pkg/queue/pgqueue"
+
 	"github.com/NikolayS/pgque-go"
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
@@ -98,6 +100,24 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create sample handler: %w", err)
 	}
 
+	registryRepo, err := repository.NewRegistry(
+		repository.RegistryWithLogger(logger),
+	)
+
+	registryUC, err := registry.NewUseCase(
+		registry.WithLogger(logger),
+		registry.WithRepository(registryRepo),
+	)
+
+	if err != nil {
+		return fmt.Errorf("create registry usecase: %w", err)
+	}
+
+	registryHandler, err := handler.NewRegistry(
+		handler.RegistryWithLogger(logger),
+		handler.RegistryWithUc(registryUC),
+	)
+
 	queueClient, err := pgque.Connect(ctx, cfg.Storage.Database.URL)
 	if err != nil {
 		return fmt.Errorf("connect pgque client: %w", err)
@@ -144,7 +164,10 @@ func run(ctx context.Context) error {
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
 		http.WithBasePath("/v1"),
-		http.WithRoutes(api.SampleRoutes(sampleHandler)),
+		http.WithRoutes(
+			api.SampleRoutes(sampleHandler),
+			api.RegistryRoutes(registryHandler),
+		),
 	)
 	if err != nil {
 		return fmt.Errorf("create http server: %w", err)
