@@ -25,7 +25,7 @@ func TestNewSample(t *testing.T) {
 	t.Parallel()
 
 	type args struct {
-		opts func(service sample.Handler) []handler.Option
+		opts func(service sample.Handler) []handler.SampleOption
 	}
 	tests := []struct {
 		name    string
@@ -35,15 +35,15 @@ func TestNewSample(t *testing.T) {
 		{
 			name: "error - no options",
 			args: args{
-				opts: func(sample.Handler) []handler.Option { return nil },
+				opts: func(sample.Handler) []handler.SampleOption { return nil },
 			},
 			wantErr: "sample handler: service is required",
 		},
 		{
 			name: "error - logger without service",
 			args: args{
-				opts: func(sample.Handler) []handler.Option {
-					return []handler.Option{handler.WithLogger(discardLogger())}
+				opts: func(sample.Handler) []handler.SampleOption {
+					return []handler.SampleOption{handler.WithLogger(discardLogger())}
 				},
 			},
 			wantErr: "sample handler: service is required",
@@ -51,8 +51,8 @@ func TestNewSample(t *testing.T) {
 		{
 			name: "error - service without logger",
 			args: args{
-				opts: func(service sample.Handler) []handler.Option {
-					return []handler.Option{handler.WithHandler(service)}
+				opts: func(service sample.Handler) []handler.SampleOption {
+					return []handler.SampleOption{handler.WithHandler(service)}
 				},
 			},
 			wantErr: "sample handler: logger is required",
@@ -60,8 +60,8 @@ func TestNewSample(t *testing.T) {
 		{
 			name: "success - every required option supplied",
 			args: args{
-				opts: func(service sample.Handler) []handler.Option {
-					return []handler.Option{
+				opts: func(service sample.Handler) []handler.SampleOption {
+					return []handler.SampleOption{
 						handler.WithHandler(service),
 						handler.WithLogger(discardLogger()),
 					}

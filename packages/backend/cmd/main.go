@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"dockzilla/internal/core/deployments"
 	"fmt"
 	"log/slog"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/schemas"
 	"dockzilla/internal/core/jobs/schemas/catalog"
-	"dockzilla/internal/core/sample"
 	"dockzilla/internal/infra/storage/cache"
 	cacherepository "dockzilla/internal/infra/storage/cache/repository"
 	"dockzilla/internal/infra/storage/postgres"
@@ -23,6 +23,7 @@ import (
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
 	"dockzilla/pkg/queue/pgqueue"
+
 	"github.com/NikolayS/pgque-go"
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
@@ -86,19 +87,6 @@ func run(ctx context.Context) error {
 	)
 	if err != nil {
 		return fmt.Errorf("create redis cache: %w", err)
-	}
-
-	sampleUseCase, err := sample.New(sample.WithLogger(logger))
-	if err != nil {
-		return fmt.Errorf("create sample use case: %w", err)
-	}
-
-	sampleHandler, err := handler.NewSample(
-		handler.WithHandler(sampleUseCase),
-		handler.WithLogger(logger),
-	)
-	if err != nil {
-		return fmt.Errorf("create sample handler: %w", err)
 	}
 
 	schemaRepo, err := repository.NewSchemas(
@@ -190,13 +178,29 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create job engine: %w", err)
 	}
 
+	deploymentRepo := repository.NewDeployment(
+		repository.DeploymentWithLogger(logger),
+	)
+
+	deploymentUC := deployments.NewUseCase(
+		deployments.WithLogger(logger),
+		deployments.WithGenerator(utils.Generator),
+		deployments.WithRepo(deploymentRepo),
+		deployments.WithJobs(jobUC),
+	)
+
+	deploymentHandler, err := handler.NewDeployment(
+		handler.DeploymentWithLogger(logger),
+		handler.DeploymentWithHandler(deploymentUC),
+	)
+
 	httpServer, err := http.NewServer(
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
 		http.WithBasePath("/v1"),
 		http.WithRoutes(
-			api.SampleRoutes(sampleHandler),
 			api.SchemasRoutes(schemaHandler),
+			api.DeploymentRoutes(deploymentHandler),
 		),
 	)
 	if err != nil {

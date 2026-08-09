@@ -10,6 +10,8 @@ import (
 	"dockzilla/pkg/domain"
 )
 
+var _ Handler = (*UseCase)(nil)
+
 // UseCase handles deployment operations.
 type UseCase struct {
 	logger    *slog.Logger
@@ -76,7 +78,7 @@ func NewUseCase(opts ...UseCaseOption) *UseCase {
 // Create creates a new deployment.
 func (uc *UseCase) Create(
 	ctx context.Context,
-	input domain.CreateDeploymentInput,
+	input *domain.CreateDeploymentInput,
 ) (domain.UUID, error) {
 	uc.logger.InfoContext(ctx, "creating new deployment")
 
