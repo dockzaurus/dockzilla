@@ -2,14 +2,14 @@ package handler
 
 import (
 	"bytes"
-	"dockzilla/internal/core/deployments"
-	"dockzilla/internal/infra/transport/http/api"
-	"dockzilla/pkg/domain"
 	"errors"
 	"io"
 	"log/slog"
 	"net/http"
 
+	"dockzilla/internal/core/deployments"
+	"dockzilla/internal/infra/transport/http/api"
+	"dockzilla/pkg/domain"
 	"github.com/gin-gonic/gin"
 )
 

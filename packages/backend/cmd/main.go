@@ -5,12 +5,12 @@ package main
 
 import (
 	"context"
-	"dockzilla/internal/core/deployments"
 	"fmt"
 	"log/slog"
 	"os"
 
 	"dockzilla/internal/core"
+	"dockzilla/internal/core/deployments"
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/schemas"
 	"dockzilla/internal/core/jobs/schemas/catalog"
@@ -185,6 +185,7 @@ func run(ctx context.Context) error {
 	deploymentUC := deployments.NewUseCase(
 		deployments.WithLogger(logger),
 		deployments.WithGenerator(utils.Generator),
+		deployments.WithUUIDParser(utils.UUIDParser),
 		deployments.WithRepo(deploymentRepo),
 		deployments.WithJobs(jobUC),
 	)

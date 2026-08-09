@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"dockzilla/internal/core/sample"
-
 	"github.com/gin-gonic/gin"
 )
 

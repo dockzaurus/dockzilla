@@ -2,9 +2,10 @@ package repository
 
 import (
 	"context"
+	"log/slog"
+
 	"dockzilla/internal/core/deployments"
 	"dockzilla/pkg/domain"
-	"log/slog"
 )
 
 var _ deployments.Repository = (*Deployment)(nil)
@@ -18,7 +19,7 @@ type DeploymentOption interface {
 }
 type deploymentOptionFunc func(*Deployment)
 
-func (f deploymentOptionFunc) apply(d *Deployment) {}
+func (f deploymentOptionFunc) apply(d *Deployment) { f(d) }
 
 func DeploymentWithLogger(logger *slog.Logger) DeploymentOption {
 	return deploymentOptionFunc(func(d *Deployment) {
@@ -36,8 +37,8 @@ func NewDeployment(options ...DeploymentOption) *Deployment {
 }
 
 func (d Deployment) Insert(ctx context.Context, deployment domain.Deployment) (domain.UUID, error) {
-	//TODO implement me
-	d.logger.InfoContext(ctx, "Inserting deployment", deployment)
+	// TODO implement me
+	d.logger.InfoContext(ctx, "Inserting deployment", slog.Any("deployment", deployment))
 
 	return deployment.Identifier, nil
 }
