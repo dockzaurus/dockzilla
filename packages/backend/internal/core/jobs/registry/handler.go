@@ -6,7 +6,7 @@ import (
 )
 
 type Handler interface {
-	ValidateSchema(ctx context.Context, schema any) (bool, error)
-	RegisterSchema(ctx context.Context, kind domain.Kind, version string, schema any) (bool, error)
-	RetrieveSchema(ctx context.Context, kind domain.Kind, version *string) (any, error)
+	ValidateSchema(ctx context.Context, schema *domain.Payload) error
+	RegisterSchema(ctx context.Context, kind domain.Kind, version string, schema *domain.Payload) error
+	RetrieveSchema(ctx context.Context, kind domain.Kind, version *string) (*domain.Payload, error)
 }

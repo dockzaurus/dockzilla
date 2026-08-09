@@ -5,12 +5,15 @@ import (
 	"dockzilla/internal/core/jobs/registry"
 	"dockzilla/pkg/domain"
 	"log/slog"
+
+	"github.com/uptrace/bun"
 )
 
 var _ registry.Repository = (*Registry)(nil)
 
 type Registry struct {
 	logger *slog.Logger
+	db     bun.IDB
 }
 
 type RegistryOption interface {
@@ -24,6 +27,12 @@ func (f registryOptionFunc) apply(r *Registry) { f(r) }
 func RegistryWithLogger(logger *slog.Logger) RegistryOption {
 	return registryOptionFunc(func(r *Registry) {
 		r.logger = logger
+	})
+}
+
+func RegistryWithDB(db bun.IDB) RegistryOption {
+	return registryOptionFunc(func(r *Registry) {
+		r.db = db
 	})
 }
 

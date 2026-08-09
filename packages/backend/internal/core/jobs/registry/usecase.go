@@ -50,17 +50,17 @@ func NewUseCase(opts ...UseCaseOption) (*UseCase, error) {
 	return uc, nil
 }
 
-func (u UseCase) ValidateSchema(ctx context.Context, schema any) (bool, error) {
+func (u UseCase) ValidateSchema(ctx context.Context, schema *domain.Payload) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UseCase) RegisterSchema(ctx context.Context, kind domain.Kind, version string, schema any) (bool, error) {
+func (u UseCase) RegisterSchema(ctx context.Context, kind domain.Kind, version string, schema *domain.Payload) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (u UseCase) RetrieveSchema(ctx context.Context, kind domain.Kind, version *string) (any, error) {
+func (u UseCase) RetrieveSchema(ctx context.Context, kind domain.Kind, version *string) (*domain.Payload, error) {
 	//TODO implement me
 	panic("implement me")
 }
