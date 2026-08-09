@@ -3,11 +3,15 @@ package deployments
 
 import (
 	"context"
+	"dockzilla/internal/infra/storage/postgres"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
 	"dockzilla/internal/core/jobs"
 	"dockzilla/pkg/domain"
+
+	"github.com/uptrace/bun"
 )
 
 var _ Handler = (*UseCase)(nil)
@@ -20,6 +24,8 @@ type UseCase struct {
 
 	jobs jobs.Handler
 	repo Repository
+
+	transactor postgres.Transactor
 }
 
 // UseCaseOption is a functional option for configuring a UseCase.
@@ -65,6 +71,12 @@ func WithUUIDParser(p domain.UUIDParser) UseCaseOption {
 	})
 }
 
+func WithTransactor(t postgres.Transactor) UseCaseOption {
+	return useCaseOptionFunc(func(c *UseCase) {
+		c.transactor = t
+	})
+}
+
 // NewUseCase creates a new UseCase with the given options.
 func NewUseCase(opts ...UseCaseOption) *UseCase {
 	uc := new(UseCase)
@@ -95,14 +107,23 @@ func (uc *UseCase) Create(
 		Status:     domain.StatusRunning,
 	}
 
-	if _, err = uc.repo.Insert(ctx, *deployment); err != nil {
-		uc.logger.WarnContext(ctx, "error inserting deployment", "error", err)
-		return domain.UUID{}, fmt.Errorf("failed to insert deployment: %w", err)
+	jobPayload, err := json.Marshal(input)
+	if err := uc.transactor.RunInTx(ctx, func(ctx context.Context, tx bun.Tx) error {
+
+		if _, err = uc.repo.Insert(ctx, *deployment); err != nil {
+			uc.logger.WarnContext(ctx, "error inserting deployment", "error", err)
+			return fmt.Errorf("failed to insert deployment: %w", err)
+		}
+
+		if err = uc.jobs.Enqueue(ctx, domain.RunDeployment, jobPayload); err != nil {
+			uc.logger.WarnContext(ctx, "failed enqueuing job", "error", err)
+			return fmt.Errorf("failed to enqueue deployment job: %w", err)
+		}
+
+		return nil
+	}); err != nil {
+		return domain.UUID{}, err
 	}
 
-	if err = uc.jobs.Enqueue(ctx, domain.RunDeployment, domain.JobsPayload{}); err != nil {
-		uc.logger.WarnContext(ctx, "failed enqueuing job", "error", err)
-		return domain.UUID{}, fmt.Errorf("failed to enqueue deployment job: %w", err)
-	}
 	return deployment.Identifier, nil
 }

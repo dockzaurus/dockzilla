@@ -79,7 +79,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create postgres storage: %w", err)
 	}
 
-	_ = postgres.NewTransactor(store.DB())
+	transactor := postgres.NewTransactor(store.DB())
 
 	cacheStore, err := cache.NewStorage(
 		cache.WithLogger(logger),
@@ -188,6 +188,7 @@ func run(ctx context.Context) error {
 		deployments.WithUUIDParser(utils.UUIDParser),
 		deployments.WithRepo(deploymentRepo),
 		deployments.WithJobs(jobUC),
+		deployments.WithTransactor(transactor),
 	)
 
 	deploymentHandler, err := handler.NewDeployment(
