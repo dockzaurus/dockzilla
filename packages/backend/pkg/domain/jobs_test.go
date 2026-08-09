@@ -61,7 +61,7 @@ func TestNewPayload(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, domain.Payload(tt.args.body), got)
+			require.Equal(t, domain.JobsPayload(tt.args.body), got)
 		})
 	}
 }
@@ -159,7 +159,7 @@ func TestEnvelope_RoundTrip(t *testing.T) {
 	// the producer's arguments untouched under Args after a round trip.
 	want := domain.Envelope{
 		ID:   domain.UUID{0x01, 0x02, 0x03},
-		Args: domain.Payload(`{"deployment_id":"dep-1"}`),
+		Args: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
 	}
 
 	body, err := json.Marshal(want)

@@ -39,7 +39,7 @@ func (_m *MockHandler) EXPECT() *MockHandler_Expecter {
 }
 
 // Enqueue provides a mock function for the type MockHandler
-func (_mock *MockHandler) Enqueue(ctx context.Context, kind domain.Kind, payload domain.Payload, opts ...domain.JobOption) error {
+func (_mock *MockHandler) Enqueue(ctx context.Context, kind domain.Kind, payload domain.JobsPayload, opts ...domain.JobOption) error {
 	var tmpRet mock.Arguments
 	if len(opts) > 0 {
 		tmpRet = _mock.Called(ctx, kind, payload, opts)
@@ -53,7 +53,7 @@ func (_mock *MockHandler) Enqueue(ctx context.Context, kind domain.Kind, payload
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.Kind, domain.Payload, ...domain.JobOption) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.Kind, domain.JobsPayload, ...domain.JobOption) error); ok {
 		r0 = returnFunc(ctx, kind, payload, opts...)
 	} else {
 		r0 = ret.Error(0)
@@ -69,14 +69,14 @@ type MockHandler_Enqueue_Call struct {
 // Enqueue is a helper method to define mock.On call
 //   - ctx context.Context
 //   - kind domain.Kind
-//   - payload domain.Payload
+//   - payload domain.JobsPayload
 //   - opts ...domain.JobOption
 func (_e *MockHandler_Expecter) Enqueue(ctx any, kind any, payload any, opts ...any) *MockHandler_Enqueue_Call {
 	return &MockHandler_Enqueue_Call{Call: _e.mock.On("Enqueue",
 		append([]any{ctx, kind, payload}, opts...)...)}
 }
 
-func (_c *MockHandler_Enqueue_Call) Run(run func(ctx context.Context, kind domain.Kind, payload domain.Payload, opts ...domain.JobOption)) *MockHandler_Enqueue_Call {
+func (_c *MockHandler_Enqueue_Call) Run(run func(ctx context.Context, kind domain.Kind, payload domain.JobsPayload, opts ...domain.JobOption)) *MockHandler_Enqueue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -86,9 +86,9 @@ func (_c *MockHandler_Enqueue_Call) Run(run func(ctx context.Context, kind domai
 		if args[1] != nil {
 			arg1 = args[1].(domain.Kind)
 		}
-		var arg2 domain.Payload
+		var arg2 domain.JobsPayload
 		if args[2] != nil {
-			arg2 = args[2].(domain.Payload)
+			arg2 = args[2].(domain.JobsPayload)
 		}
 		var arg3 []domain.JobOption
 		var variadicArgs []domain.JobOption
@@ -111,7 +111,7 @@ func (_c *MockHandler_Enqueue_Call) Return(err error) *MockHandler_Enqueue_Call 
 	return _c
 }
 
-func (_c *MockHandler_Enqueue_Call) RunAndReturn(run func(ctx context.Context, kind domain.Kind, payload domain.Payload, opts ...domain.JobOption) error) *MockHandler_Enqueue_Call {
+func (_c *MockHandler_Enqueue_Call) RunAndReturn(run func(ctx context.Context, kind domain.Kind, payload domain.JobsPayload, opts ...domain.JobOption) error) *MockHandler_Enqueue_Call {
 	_c.Call.Return(run)
 	return _c
 }

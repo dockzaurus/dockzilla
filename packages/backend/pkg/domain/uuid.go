@@ -13,3 +13,8 @@ type UUID [16]byte
 func (u UUID) String() string {
 	return hex.EncodeToString(u[:])
 }
+
+// Bytes returns the UUID as a byte slice.
+func (u UUID) Bytes() []byte {
+	return u[:]
+}

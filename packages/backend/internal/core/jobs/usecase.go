@@ -24,7 +24,7 @@ type UseCase struct {
 
 type entry struct {
 	timeout time.Duration
-	run     func(ctx context.Context, payload domain.Payload) error
+	run     func(ctx context.Context, payload domain.JobsPayload) error
 }
 
 // UCOption configures a UseCase during construction.
@@ -86,7 +86,7 @@ func New(opts ...UCOption) (*UseCase, error) {
 func (uc *UseCase) Enqueue(
 	ctx context.Context,
 	kind domain.Kind,
-	payload domain.Payload,
+	payload domain.JobsPayload,
 	opts ...domain.JobOption,
 ) error {
 	identifier := uc.generator()

@@ -93,7 +93,7 @@ func TestUseCase_Enqueue(t *testing.T) {
 
 	type args struct {
 		kind    domain.Kind
-		payload domain.Payload
+		payload domain.JobsPayload
 		opts    []domain.JobOption
 	}
 	tests := []struct {
@@ -106,14 +106,14 @@ func TestUseCase_Enqueue(t *testing.T) {
 			name: "success - message carries the generated id, kind and payload",
 			args: args{
 				kind:    domain.RunDeployment,
-				payload: domain.Payload(`{"deployment_id":"dep-1"}`),
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
 			},
 		},
 		{
 			name: "success - job options reach the repository untouched",
 			args: args{
 				kind:    domain.StartApp,
-				payload: domain.Payload(`{"app_id":"app-1"}`),
+				payload: domain.JobsPayload(`{"app_id":"app-1"}`),
 				opts: []domain.JobOption{
 					domain.WithMaxAttempts(5),
 					domain.WithUniqueKey(domain.Key("app-1")),
@@ -124,7 +124,7 @@ func TestUseCase_Enqueue(t *testing.T) {
 			name: "error - repository insert fails",
 			args: args{
 				kind:    domain.StopApp,
-				payload: domain.Payload(`{"app_id":"app-1"}`),
+				payload: domain.JobsPayload(`{"app_id":"app-1"}`),
 			},
 			insertErr: errInsert,
 			wantErr:   "insert job: no ambient transaction",

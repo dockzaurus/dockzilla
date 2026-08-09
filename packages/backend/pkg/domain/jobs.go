@@ -8,18 +8,18 @@ import (
 	errs "dockzilla/pkg/domain/errors"
 )
 
-// Payload is the job argument blob, bounded at MaxPayloadSize.
-type Payload = json.RawMessage
+// JobsPayload is the job argument blob, bounded at MaxPayloadSize.
+type JobsPayload = json.RawMessage
 
 // NewPayload validates and returns a Payload, or an error if the size is invalid.
-func NewPayload(b []byte) (Payload, error) {
+func NewPayload(b []byte) (JobsPayload, error) {
 	if len(b) > MaxPayloadSize {
 		return nil, errs.ErrPayloadTooLarge
 	}
 	if len(b) == 0 {
 		return nil, errs.ErrPayloadEmpty
 	}
-	return Payload(b), nil
+	return b, nil
 }
 
 // Key is a serialization key for per-resource job uniqueness.
@@ -46,8 +46,8 @@ const (
 // survive the round trip. Args holds the handler's arguments untouched, so
 // Register[T] still unmarshals exactly what the producer sent.
 type Envelope struct {
-	ID   UUID    `json:"id"`
-	Args Payload `json:"args"`
+	ID   UUID        `json:"id"`
+	Args JobsPayload `json:"args"`
 }
 
 // AllKinds returns every job kind the engine knows about. Substrates that
@@ -71,7 +71,7 @@ type HeaderFrame struct {
 // Message is the unit enqueued into and received from the job queue.
 type Message struct {
 	Header   HeaderFrame
-	Payload  Payload
+	Payload  JobsPayload
 	Attempts uint32
 }
 

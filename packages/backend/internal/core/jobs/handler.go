@@ -16,7 +16,7 @@ type Handler interface {
 	Enqueue(
 		ctx context.Context,
 		kind domain.Kind,
-		payload domain.Payload,
+		payload domain.JobsPayload,
 		opts ...domain.JobOption,
 	) error
 }
