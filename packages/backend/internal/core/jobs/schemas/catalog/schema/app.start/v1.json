@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "AppID is the application whose container should be started."
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "app_id"
+  ],
+  "description": "StartAppArgsV1 is the v1 payload of the app.start job."
+}

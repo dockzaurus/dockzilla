@@ -72,15 +72,11 @@ func TestTerminal_PreservesTheWrappedError(t *testing.T) {
 	require.True(t, errs.IsTerminal(wrapped))
 	require.EqualError(t, wrapped, "boom")
 
-	// NOTE: terminal embeds error but declares no Unwrap, so errors.Is cannot
-	// see through it — classifying an error as terminal today costs callers the
-	// ability to match the sentinel underneath. Adding
-	//
-	//	func (t terminal) Unwrap() error { return t.error }
-	//
-	// flips this to require.ErrorIs, and this assertion fails loudly when it
-	// does rather than letting the behaviour change go unnoticed.
-	require.NotErrorIs(t, wrapped, errBoom)
+	// terminal declares Unwrap, so classifying an error as non-retryable does
+	// not cost callers the ability to match the sentinel underneath. The
+	// registry depends on this: it marks a missing schema terminal and the
+	// HTTP layer still has to recognise it as ErrSchemaNotFound to answer 404.
+	require.ErrorIs(t, wrapped, errBoom)
 }
 
 func TestSentinels_AreDistinct(t *testing.T) {
