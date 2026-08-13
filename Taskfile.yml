@@ -49,8 +49,21 @@ tasks:
       - ./scripts/vendor-pgque.sh --verify
       - go build ./...
       - go vet ./...
+      - go run ./cmd/schemagen -check
       - golangci-lint run
       - go test -race ./...
+
+  backend:schemas:gen:
+    desc: Regenerate the committed job payload schemas from the pkg/domain argument structs
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - go run ./cmd/schemagen
+
+  backend:schemas:check:
+    desc: Fail when a committed job payload schema no longer matches its argument struct
+    dir: '{{.BACKEND_DIR}}'
+    cmds:
+      - go run ./cmd/schemagen -check
 
   backend:pgque:vendor:
     desc: 'Re-fetch the vendored PgQue schema; pass a tag to upgrade the pin: task backend:pgque:vendor -- v0.3.0'

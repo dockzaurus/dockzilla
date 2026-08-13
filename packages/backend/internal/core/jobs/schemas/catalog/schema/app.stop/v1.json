@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "AppID is the application whose container should be stopped."
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "maximum": 3600,
+      "minimum": 0,
+      "description": "TimeoutSeconds is how long the container is given to exit on its own\nbefore it is killed. Zero means the engine's own default."
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "app_id"
+  ],
+  "description": "StopAppArgsV1 is the v1 payload of the app.stop job."
+}

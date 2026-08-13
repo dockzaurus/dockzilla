@@ -11,8 +11,11 @@ import (
 
 	"dockzilla/internal/core"
 	"dockzilla/internal/core/jobs"
+	"dockzilla/internal/core/jobs/schemas"
+	"dockzilla/internal/core/jobs/schemas/catalog"
 	"dockzilla/internal/core/sample"
 	"dockzilla/internal/infra/storage/cache"
+	cacherepository "dockzilla/internal/infra/storage/cache/repository"
 	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/internal/infra/storage/postgres/repository"
 	"dockzilla/internal/infra/transport/http"
@@ -98,6 +101,53 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create sample handler: %w", err)
 	}
 
+	schemaRepo, err := repository.NewSchemas(
+		repository.SchemasWithLogger(logger),
+		repository.SchemasWithDB(store.DB()),
+	)
+	if err != nil {
+		return fmt.Errorf("create schema registry repository: %w", err)
+	}
+
+	schemaCache, err := cacherepository.NewSchemas(
+		cacherepository.SchemasWithLogger(logger),
+		cacherepository.SchemasWithClient(cacheStore.Client()),
+	)
+	if err != nil {
+		return fmt.Errorf("create schema registry cache: %w", err)
+	}
+
+	builtinSchemas, err := catalog.Documents()
+	if err != nil {
+		return fmt.Errorf("load built-in schemas: %w", err)
+	}
+
+	schemaUC, err := schemas.NewUseCase(
+		schemas.WithLogger(logger),
+		schemas.WithRepository(schemaRepo),
+		schemas.WithCache(schemaCache),
+		schemas.WithCatalog(builtinSchemas),
+	)
+	if err != nil {
+		return fmt.Errorf("create schema registry use case: %w", err)
+	}
+
+	// Publishing the built-in contracts before anything can enqueue or consume
+	// means a replica never validates against a registry that is missing its
+	// own kinds. It fails the boot when a shipped schema disagrees with the row
+	// already stored, which only happens when a frozen version was edited.
+	if err = schemaUC.Bootstrap(ctx); err != nil {
+		return fmt.Errorf("publish built-in schemas: %w", err)
+	}
+
+	schemaHandler, err := handler.NewSchemas(
+		handler.SchemasWithLogger(logger),
+		handler.SchemasWithHandler(schemaUC),
+	)
+	if err != nil {
+		return fmt.Errorf("create schema registry handler: %w", err)
+	}
+
 	queueClient, err := pgque.Connect(ctx, cfg.Storage.Database.URL)
 	if err != nil {
 		return fmt.Errorf("connect pgque client: %w", err)
@@ -144,7 +194,10 @@ func run(ctx context.Context) error {
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
 		http.WithBasePath("/v1"),
-		http.WithRoutes(api.SampleRoutes(sampleHandler)),
+		http.WithRoutes(
+			api.SampleRoutes(sampleHandler),
+			api.SchemasRoutes(schemaHandler),
+		),
 	)
 	if err != nil {
 		return fmt.Errorf("create http server: %w", err)

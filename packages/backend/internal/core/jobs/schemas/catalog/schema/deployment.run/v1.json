@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "deployment_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "DeploymentID is the ledger row this run reports its progress against."
+    },
+    "app_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "AppID is the application being deployed."
+    },
+    "image_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "ImageRef is the image reference as requested, before the digest is\nresolved at pull time."
+    },
+    "triggered_by": {
+      "type": "string",
+      "enum": [
+        "api",
+        "cli",
+        "webhook",
+        "rollback"
+      ],
+      "description": "TriggeredBy records what caused the deployment."
+    },
+    "triggered_by_user_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "TriggeredByUserID is the user who asked for the deployment. It is empty\nfor a webhook, which nobody triggers by hand."
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "deployment_id",
+    "app_id",
+    "image_ref",
+    "triggered_by"
+  ],
+  "description": "DeployArgsV1 is the v1 payload of the deployment.run job."
+}

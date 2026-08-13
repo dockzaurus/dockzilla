@@ -23,6 +23,16 @@ var (
 
 type terminal struct{ error }
 
+// Unwrap exposes the wrapped error.
+//
+// Embedding an error promotes Error but not Unwrap, so without this method
+// Terminal is where a chain stops: errors.Is could no longer see the sentinel
+// underneath, and a caller asking "is this ErrSchemaNotFound" would be told no
+// purely because something classified it as non-retryable on the way up.
+func (t terminal) Unwrap() error {
+	return t.error
+}
+
 // Terminal wraps err so it is classified as non-retryable and dead-lettered
 // immediately. Use it for bad payloads, missing handlers, and 404s.
 func Terminal(err error) error {
