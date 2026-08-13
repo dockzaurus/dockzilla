@@ -3,14 +3,13 @@ package deployments
 
 import (
 	"context"
-	"dockzilla/internal/infra/storage/postgres"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 
 	"dockzilla/internal/core/jobs"
+	"dockzilla/internal/infra/storage/postgres"
 	"dockzilla/pkg/domain"
-
 	"github.com/uptrace/bun"
 )
 
@@ -65,12 +64,14 @@ func WithRepo(r Repository) UseCaseOption {
 	})
 }
 
+// WithUUIDParser sets the UUID parser for the use case.
 func WithUUIDParser(p domain.UUIDParser) UseCaseOption {
 	return useCaseOptionFunc(func(c *UseCase) {
 		c.parseUUID = p
 	})
 }
 
+// WithTransactor sets the transactor for the use case.
 func WithTransactor(t postgres.Transactor) UseCaseOption {
 	return useCaseOptionFunc(func(c *UseCase) {
 		c.transactor = t
@@ -97,7 +98,10 @@ func (uc *UseCase) Create(
 	deploymentID := uc.generate()
 	appID, err := uc.parseUUID(input.AppID)
 	if err != nil {
-		return domain.UUID{}, fmt.Errorf("failed to parse app ID: %w", err)
+		return domain.UUID{}, fmt.Errorf(
+			"failed to parse app ID: %w",
+			err,
+		)
 	}
 
 	deployment := &domain.Deployment{
@@ -108,21 +112,28 @@ func (uc *UseCase) Create(
 	}
 
 	jobPayload, err := json.Marshal(input)
-	if err := uc.transactor.RunInTx(ctx, func(ctx context.Context, tx bun.Tx) error {
+	if err != nil {
+		return domain.UUID{}, fmt.Errorf("failed to marshal deployment job payload: %w", err)
+	}
 
-		if _, err = uc.repo.Insert(ctx, *deployment); err != nil {
-			uc.logger.WarnContext(ctx, "error inserting deployment", "error", err)
-			return fmt.Errorf("failed to insert deployment: %w", err)
+	if txErr := uc.transactor.RunInTx(ctx, func(ctx context.Context, _ bun.Tx) error {
+		if _, insertErr := uc.repo.Insert(ctx, *deployment); insertErr != nil {
+			uc.logger.WarnContext(ctx, "error inserting deployment", "error", insertErr)
+			return fmt.Errorf("failed to insert deployment: %w", insertErr)
 		}
 
-		if err = uc.jobs.Enqueue(ctx, domain.RunDeployment, jobPayload); err != nil {
-			uc.logger.WarnContext(ctx, "failed enqueuing job", "error", err)
-			return fmt.Errorf("failed to enqueue deployment job: %w", err)
+		if enqueueErr := uc.jobs.Enqueue(
+			ctx,
+			domain.RunDeployment,
+			jobPayload,
+		); enqueueErr != nil {
+			uc.logger.WarnContext(ctx, "failed enqueuing job", "error", enqueueErr)
+			return fmt.Errorf("failed to enqueue deployment job: %w", enqueueErr)
 		}
 
 		return nil
-	}); err != nil {
-		return domain.UUID{}, err
+	}); txErr != nil {
+		return domain.UUID{}, fmt.Errorf("failed to run deployment transaction: %w", txErr)
 	}
 
 	return deployment.Identifier, nil

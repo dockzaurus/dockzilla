@@ -23,7 +23,6 @@ import (
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
 	"dockzilla/pkg/queue/pgqueue"
-
 	"github.com/NikolayS/pgque-go"
 	"github.com/zixyos/giniservice/telemetry"
 	"github.com/zixyos/glog"
@@ -195,6 +194,9 @@ func run(ctx context.Context) error {
 		handler.DeploymentWithLogger(logger),
 		handler.DeploymentWithHandler(deploymentUC),
 	)
+	if err != nil {
+		return fmt.Errorf("create deployment handler: %w", err)
+	}
 
 	httpServer, err := http.NewServer(
 		http.WithLogger(logger),

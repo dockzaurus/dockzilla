@@ -53,5 +53,5 @@ type Handler interface {
 	// Validate reports whether payload satisfies the schema ref names. Both a
 	// payload that fails validation and a reference nobody registered are
 	// returned as terminal errors, because neither becomes true on a retry.
-	Validate(ctx context.Context, ref domain.SchemaRef, payload domain.Payload) error
+	Validate(ctx context.Context, ref domain.SchemaRef, payload domain.JobsPayload) error
 }

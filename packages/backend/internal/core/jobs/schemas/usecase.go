@@ -200,7 +200,7 @@ func (u *UseCase) List(ctx context.Context, kind domain.Kind) ([]domain.Schema, 
 func (u *UseCase) Validate(
 	ctx context.Context,
 	ref domain.SchemaRef,
-	payload domain.Payload,
+	payload domain.JobsPayload,
 ) error {
 	schema, err := u.compiledFor(ctx, ref)
 	if err != nil {

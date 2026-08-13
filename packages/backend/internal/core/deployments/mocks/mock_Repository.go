@@ -39,8 +39,8 @@ func (_m *MockRepository) EXPECT() *MockRepository_Expecter {
 }
 
 // Insert provides a mock function for the type MockRepository
-func (_mock *MockRepository) Insert(context1 context.Context, deployment domain.Deployment) (domain.UUID, error) {
-	ret := _mock.Called(context1, deployment)
+func (_mock *MockRepository) Insert(ctx context.Context, deployment domain.Deployment) (domain.UUID, error) {
+	ret := _mock.Called(ctx, deployment)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Insert")
@@ -49,17 +49,17 @@ func (_mock *MockRepository) Insert(context1 context.Context, deployment domain.
 	var r0 domain.UUID
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.Deployment) (domain.UUID, error)); ok {
-		return returnFunc(context1, deployment)
+		return returnFunc(ctx, deployment)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.Deployment) domain.UUID); ok {
-		r0 = returnFunc(context1, deployment)
+		r0 = returnFunc(ctx, deployment)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(domain.UUID)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, domain.Deployment) error); ok {
-		r1 = returnFunc(context1, deployment)
+		r1 = returnFunc(ctx, deployment)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,13 +72,13 @@ type MockRepository_Insert_Call struct {
 }
 
 // Insert is a helper method to define mock.On call
-//   - context1 context.Context
+//   - ctx context.Context
 //   - deployment domain.Deployment
-func (_e *MockRepository_Expecter) Insert(context1 any, deployment any) *MockRepository_Insert_Call {
-	return &MockRepository_Insert_Call{Call: _e.mock.On("Insert", context1, deployment)}
+func (_e *MockRepository_Expecter) Insert(ctx any, deployment any) *MockRepository_Insert_Call {
+	return &MockRepository_Insert_Call{Call: _e.mock.On("Insert", ctx, deployment)}
 }
 
-func (_c *MockRepository_Insert_Call) Run(run func(context1 context.Context, deployment domain.Deployment)) *MockRepository_Insert_Call {
+func (_c *MockRepository_Insert_Call) Run(run func(ctx context.Context, deployment domain.Deployment)) *MockRepository_Insert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -101,7 +101,7 @@ func (_c *MockRepository_Insert_Call) Return(uUID domain.UUID, err error) *MockR
 	return _c
 }
 
-func (_c *MockRepository_Insert_Call) RunAndReturn(run func(context1 context.Context, deployment domain.Deployment) (domain.UUID, error)) *MockRepository_Insert_Call {
+func (_c *MockRepository_Insert_Call) RunAndReturn(run func(ctx context.Context, deployment domain.Deployment) (domain.UUID, error)) *MockRepository_Insert_Call {
 	_c.Call.Return(run)
 	return _c
 }

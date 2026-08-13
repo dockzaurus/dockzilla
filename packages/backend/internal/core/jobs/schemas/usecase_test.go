@@ -184,7 +184,7 @@ func TestUseCase_Validate(t *testing.T) {
 			repo.EXPECT().Get(mock.Anything, testRef()).Return(testSchema(), nil).Once()
 
 			err := newUseCase(t, repo).
-				Validate(t.Context(), testRef(), domain.Payload(tt.payload))
+				Validate(t.Context(), testRef(), domain.JobsPayload(tt.payload))
 
 			if tt.wantErr == nil {
 				require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestUseCase_Validate_UnknownReferenceIsTerminal(t *testing.T) {
 		Return(domain.Schema{}, errs.ErrSchemaNotFound).
 		Once()
 
-	err := newUseCase(t, repo).Validate(t.Context(), testRef(), domain.Payload(`{}`))
+	err := newUseCase(t, repo).Validate(t.Context(), testRef(), domain.JobsPayload(`{}`))
 
 	require.ErrorIs(t, err, errs.ErrSchemaNotFound)
 	require.True(t, errs.IsTerminal(err), "an unpublished contract must dead-letter")
@@ -228,7 +228,7 @@ func TestUseCase_Validate_StoreFailureStaysRetryable(t *testing.T) {
 		Return(domain.Schema{}, unreachable).
 		Once()
 
-	err := newUseCase(t, repo).Validate(t.Context(), testRef(), domain.Payload(`{"app_id":"a"}`))
+	err := newUseCase(t, repo).Validate(t.Context(), testRef(), domain.JobsPayload(`{"app_id":"a"}`))
 
 	require.ErrorIs(t, err, unreachable)
 	require.False(t, errs.IsTerminal(err), "an unreachable store must stay retryable")
@@ -244,8 +244,8 @@ func TestUseCase_Validate_CompilesEachReferenceOnce(t *testing.T) {
 
 	uc := newUseCase(t, repo)
 
-	require.NoError(t, uc.Validate(t.Context(), testRef(), domain.Payload(`{"app_id":"a"}`)))
-	require.NoError(t, uc.Validate(t.Context(), testRef(), domain.Payload(`{"app_id":"b"}`)))
+	require.NoError(t, uc.Validate(t.Context(), testRef(), domain.JobsPayload(`{"app_id":"a"}`)))
+	require.NoError(t, uc.Validate(t.Context(), testRef(), domain.JobsPayload(`{"app_id":"b"}`)))
 }
 
 func TestUseCase_Validate_IsSafeUnderConcurrentFirstUse(t *testing.T) {
@@ -268,7 +268,7 @@ func TestUseCase_Validate_IsSafeUnderConcurrentFirstUse(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			payload := domain.Payload(`{"app_id": "` + strconv.Itoa(i) + `"}`)
+			payload := domain.JobsPayload(`{"app_id": "` + strconv.Itoa(i) + `"}`)
 			require.NoError(t, uc.Validate(t.Context(), testRef(), payload))
 		}()
 	}

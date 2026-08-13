@@ -37,8 +37,8 @@ func (_m *MockDeploymentHandler) EXPECT() *MockDeploymentHandler_Expecter {
 }
 
 // Create provides a mock function for the type MockDeploymentHandler
-func (_mock *MockDeploymentHandler) Create(context *gin.Context) {
-	_mock.Called(context)
+func (_mock *MockDeploymentHandler) Create(c *gin.Context) {
+	_mock.Called(c)
 	return
 }
 
@@ -48,12 +48,12 @@ type MockDeploymentHandler_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - context *gin.Context
-func (_e *MockDeploymentHandler_Expecter) Create(context any) *MockDeploymentHandler_Create_Call {
-	return &MockDeploymentHandler_Create_Call{Call: _e.mock.On("Create", context)}
+//   - c *gin.Context
+func (_e *MockDeploymentHandler_Expecter) Create(c any) *MockDeploymentHandler_Create_Call {
+	return &MockDeploymentHandler_Create_Call{Call: _e.mock.On("Create", c)}
 }
 
-func (_c *MockDeploymentHandler_Create_Call) Run(run func(context *gin.Context)) *MockDeploymentHandler_Create_Call {
+func (_c *MockDeploymentHandler_Create_Call) Run(run func(c *gin.Context)) *MockDeploymentHandler_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *gin.Context
 		if args[0] != nil {
@@ -71,7 +71,7 @@ func (_c *MockDeploymentHandler_Create_Call) Return() *MockDeploymentHandler_Cre
 	return _c
 }
 
-func (_c *MockDeploymentHandler_Create_Call) RunAndReturn(run func(context *gin.Context)) *MockDeploymentHandler_Create_Call {
+func (_c *MockDeploymentHandler_Create_Call) RunAndReturn(run func(c *gin.Context)) *MockDeploymentHandler_Create_Call {
 	_c.Run(run)
 	return _c
 }

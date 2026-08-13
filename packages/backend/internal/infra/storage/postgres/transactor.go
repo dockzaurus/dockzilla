@@ -19,6 +19,7 @@ type Transactor interface {
 
 var _ Transactor = (*PgTransactor)(nil)
 
+// PgTransactor is the bun-backed implementation of Transactor.
 type PgTransactor struct {
 	db bun.IDB
 }
