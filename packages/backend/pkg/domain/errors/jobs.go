@@ -19,6 +19,12 @@ var (
 	// ErrUnsupportedOption is returned when a caller asks for job semantics the
 	// queue substrate cannot provide. Failing beats silently dropping the option.
 	ErrUnsupportedOption = errors.New("jobs repository: option unsupported by pgque")
+
+	// ErrNoActor is returned when a use case that records provenance runs on a
+	// context no middleware attached an Actor to. It is a wiring bug, not a bad
+	// request: the route is reachable without the middleware that identifies
+	// the caller.
+	ErrNoActor = errors.New("context carries no actor")
 )
 
 type terminal struct{ error }

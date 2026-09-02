@@ -312,7 +312,7 @@ func (_c *MockHandler_Retrieve_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // Validate provides a mock function for the type MockHandler
-func (_mock *MockHandler) Validate(ctx context.Context, ref domain.SchemaRef, payload domain.Payload) error {
+func (_mock *MockHandler) Validate(ctx context.Context, ref domain.SchemaRef, payload domain.JobsPayload) error {
 	ret := _mock.Called(ctx, ref, payload)
 
 	if len(ret) == 0 {
@@ -320,7 +320,7 @@ func (_mock *MockHandler) Validate(ctx context.Context, ref domain.SchemaRef, pa
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.SchemaRef, domain.Payload) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, domain.SchemaRef, domain.JobsPayload) error); ok {
 		r0 = returnFunc(ctx, ref, payload)
 	} else {
 		r0 = ret.Error(0)
@@ -336,12 +336,12 @@ type MockHandler_Validate_Call struct {
 // Validate is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ref domain.SchemaRef
-//   - payload domain.Payload
+//   - payload domain.JobsPayload
 func (_e *MockHandler_Expecter) Validate(ctx any, ref any, payload any) *MockHandler_Validate_Call {
 	return &MockHandler_Validate_Call{Call: _e.mock.On("Validate", ctx, ref, payload)}
 }
 
-func (_c *MockHandler_Validate_Call) Run(run func(ctx context.Context, ref domain.SchemaRef, payload domain.Payload)) *MockHandler_Validate_Call {
+func (_c *MockHandler_Validate_Call) Run(run func(ctx context.Context, ref domain.SchemaRef, payload domain.JobsPayload)) *MockHandler_Validate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -351,9 +351,9 @@ func (_c *MockHandler_Validate_Call) Run(run func(ctx context.Context, ref domai
 		if args[1] != nil {
 			arg1 = args[1].(domain.SchemaRef)
 		}
-		var arg2 domain.Payload
+		var arg2 domain.JobsPayload
 		if args[2] != nil {
-			arg2 = args[2].(domain.Payload)
+			arg2 = args[2].(domain.JobsPayload)
 		}
 		run(
 			arg0,
@@ -369,7 +369,7 @@ func (_c *MockHandler_Validate_Call) Return(err error) *MockHandler_Validate_Cal
 	return _c
 }
 
-func (_c *MockHandler_Validate_Call) RunAndReturn(run func(ctx context.Context, ref domain.SchemaRef, payload domain.Payload) error) *MockHandler_Validate_Call {
+func (_c *MockHandler_Validate_Call) RunAndReturn(run func(ctx context.Context, ref domain.SchemaRef, payload domain.JobsPayload) error) *MockHandler_Validate_Call {
 	_c.Call.Return(run)
 	return _c
 }

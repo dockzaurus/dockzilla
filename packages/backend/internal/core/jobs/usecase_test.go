@@ -7,6 +7,7 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/mocks"
 	"dockzilla/pkg/domain"
+	errs "dockzilla/pkg/domain/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -93,7 +94,7 @@ func TestUseCase_Enqueue(t *testing.T) {
 
 	type args struct {
 		kind    domain.Kind
-		payload domain.Payload
+		payload domain.JobsPayload
 		opts    []domain.JobOption
 	}
 	tests := []struct {
@@ -106,14 +107,14 @@ func TestUseCase_Enqueue(t *testing.T) {
 			name: "success - message carries the generated id, kind and payload",
 			args: args{
 				kind:    domain.RunDeployment,
-				payload: domain.Payload(`{"deployment_id":"dep-1"}`),
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
 			},
 		},
 		{
 			name: "success - job options reach the repository untouched",
 			args: args{
 				kind:    domain.StartApp,
-				payload: domain.Payload(`{"app_id":"app-1"}`),
+				payload: domain.JobsPayload(`{"app_id":"app-1"}`),
 				opts: []domain.JobOption{
 					domain.WithMaxAttempts(5),
 					domain.WithUniqueKey(domain.Key("app-1")),
@@ -124,10 +125,23 @@ func TestUseCase_Enqueue(t *testing.T) {
 			name: "error - repository insert fails",
 			args: args{
 				kind:    domain.StopApp,
-				payload: domain.Payload(`{"app_id":"app-1"}`),
+				payload: domain.JobsPayload(`{"app_id":"app-1"}`),
 			},
 			insertErr: errInsert,
 			wantErr:   "insert job: no ambient transaction",
+		},
+		{
+			// The wrap must keep errors.Is working on the sentinel: a caller
+			// that cannot tell "you forgot the transaction" apart from any
+			// other insert failure has no way to fix its own bug.
+			name: "error - a missing transaction stays matchable as ErrNoTransaction",
+			args: args{
+				kind:    domain.RunDeployment,
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
+			},
+			insertErr: errs.ErrNoTransaction,
+			wantErr: "insert job: jobs repository: insert requires an " +
+				"ambient transaction",
 		},
 	}
 

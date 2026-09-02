@@ -10,10 +10,10 @@ import (
 	"os"
 
 	"dockzilla/internal/core"
+	"dockzilla/internal/core/deployments"
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/schemas"
 	"dockzilla/internal/core/jobs/schemas/catalog"
-	"dockzilla/internal/core/sample"
 	"dockzilla/internal/infra/storage/cache"
 	cacherepository "dockzilla/internal/infra/storage/cache/repository"
 	"dockzilla/internal/infra/storage/postgres"
@@ -78,7 +78,7 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create postgres storage: %w", err)
 	}
 
-	_ = postgres.NewTransactor(store.DB())
+	transactor := postgres.NewTransactor(store.DB())
 
 	cacheStore, err := cache.NewStorage(
 		cache.WithLogger(logger),
@@ -86,19 +86,6 @@ func run(ctx context.Context) error {
 	)
 	if err != nil {
 		return fmt.Errorf("create redis cache: %w", err)
-	}
-
-	sampleUseCase, err := sample.New(sample.WithLogger(logger))
-	if err != nil {
-		return fmt.Errorf("create sample use case: %w", err)
-	}
-
-	sampleHandler, err := handler.NewSample(
-		handler.WithHandler(sampleUseCase),
-		handler.WithLogger(logger),
-	)
-	if err != nil {
-		return fmt.Errorf("create sample handler: %w", err)
 	}
 
 	schemaRepo, err := repository.NewSchemas(
@@ -190,13 +177,38 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create job engine: %w", err)
 	}
 
+	deploymentRepo, err := repository.NewDeployment(
+		repository.DeploymentWithLogger(logger),
+		repository.DeploymentWithDB(store.DB()),
+	)
+	if err != nil {
+		return fmt.Errorf("create deployment repository: %w", err)
+	}
+
+	deploymentUC := deployments.NewUseCase(
+		deployments.WithLogger(logger),
+		deployments.WithGenerator(utils.Generator),
+		deployments.WithUUIDParser(utils.UUIDParser),
+		deployments.WithRepo(deploymentRepo),
+		deployments.WithJobs(jobUC),
+		deployments.WithTransactor(transactor),
+	)
+
+	deploymentHandler, err := handler.NewDeployment(
+		handler.DeploymentWithLogger(logger),
+		handler.DeploymentWithHandler(deploymentUC),
+	)
+	if err != nil {
+		return fmt.Errorf("create deployment handler: %w", err)
+	}
+
 	httpServer, err := http.NewServer(
 		http.WithLogger(logger),
 		http.WithConfig(&cfg.HTTP),
 		http.WithBasePath("/v1"),
 		http.WithRoutes(
-			api.SampleRoutes(sampleHandler),
 			api.SchemasRoutes(schemaHandler),
+			api.DeploymentRoutes(deploymentHandler, logger),
 		),
 	)
 	if err != nil {

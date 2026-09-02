@@ -377,7 +377,117 @@ and it is never stored in a struct.
 
 ---
 
-## 6. Receivers, interfaces, and a trap worth memorising
+## 6. Transactions
+
+Some pairs of writes have to agree unconditionally. `POST /deployments` writes a `deployments` row
+*and* enqueues the job that acts on it; if those two can disagree, a deploy is accepted by the API
+and then silently never happens — a row stuck at `queued` forever, with no error and no retry,
+because the row survived and the intent didn't.
+
+The only way two facts agree unconditionally is one commit.
+
+### Open the transaction in the use case, with `RunInTx`
+
+`postgres.Transactor` is the only thing that opens a transaction. It puts the `bun.Tx` into the
+context it hands your function, so every call made inside joins it:
+
+```go
+func (uc *UseCase) Create(ctx context.Context, req CreateRequest) (domain.UUID, error) {
+	dep := newDeployment(uc.generator(), req)
+
+	if err := uc.transactor.RunInTx(ctx, func(ctx context.Context, _ bun.Tx) error {
+		if err := uc.repo.Insert(ctx, dep); err != nil {
+			return err
+		}
+
+		return uc.jobs.Enqueue(ctx, domain.RunDeployment, payload)
+	}); err != nil {
+		return domain.UUID{}, fmt.Errorf("create deployment: %w", err)
+	}
+
+	return dep.Identifier, nil
+}
+```
+
+Shadow the outer `ctx` with the one `RunInTx` passes in — that inner one is what carries the
+transaction. Naming it something else (`txCtx`) leaves two contexts in scope and invites the next
+reader to pass the wrong one, which fails silently by opening its own connection outside the
+transaction.
+
+### The transaction travels in the context, not in signatures
+
+Repositories never take a `bun.Tx` or `bun.IDB` parameter. They route every query through
+`postgres.IDB(ctx, fallback)`, which returns the ambient transaction when there is one:
+
+```go
+func (r *Deployments) Insert(ctx context.Context, dep *models.Deployments) error {
+	if _, err := postgres.IDB(ctx, r.db).NewInsert().Model(dep).Exec(ctx); err != nil {
+		return fmt.Errorf("insert deployment: %w", err)
+	}
+
+	return nil
+}
+```
+
+The obvious alternative is to thread the transaction explicitly —
+`Enqueue(ctx, tx, kind, payload)` taking a concrete `bun.Tx` — so that calling it outside a
+transaction doesn't compile. `bun.IDB` is also satisfied by `*bun.DB`, so only the concrete type
+actually forbids it. We deliberately don't do this, and the reason is worth understanding,
+because we are giving up a compile-time guarantee.
+
+Our transactions span **use cases**, not just repositories: `deployments.Create` calls
+`jobs.Enqueue`, an account use case calls a balance use case. Threading the transaction
+explicitly puts `bun.Tx` in the *public signature* of every use case that can take part in one,
+so `internal/core` — the layer whose whole point is not knowing how storage works — ends up
+importing bun everywhere. That cost is paid by every use case forever, to catch a mistake a test
+catches once.
+
+### A port that requires a transaction must fail without one
+
+The `fallback` argument is where this gets safe or unsafe. Passing the pool (`r.db`) means "join
+the transaction if there is one, otherwise run standalone" — correct for an ordinary read. Passing
+`nil` means "there must be a transaction," and turns its absence into a hard failure:
+
+```go
+// GOOD — a dual write is the exact thing this port exists to prevent, so a
+// silent pool fallback is not an option here.
+db := postgres.IDB(ctx, nil)
+if db == nil {
+	return errs.ErrNoTransaction
+}
+```
+
+Put the requirement in the interface too, so nobody implements it the other way:
+
+```go
+// Insert enqueues msg inside the caller's unit of work. Implementations MUST
+// fail when no transaction is ambient — a silent pool fallback would
+// reintroduce the dual write this design exists to prevent.
+Insert(ctx context.Context, msg domain.Message, opts ...domain.JobOption) error
+```
+
+### Every producing use case needs a transaction test
+
+This is the part you have to actually do, because it is the guarantee we chose *instead of* the
+compiler's.
+
+With an explicit `bun.Tx` parameter, a missing transaction is a build failure at every call site,
+including the ones nobody tested. With an ambient transaction it is a **runtime** failure: the code
+compiles, passes review, ships, and returns `ErrNoTransaction` in production the first time that
+path runs.
+
+So when you write a use case that enqueues a job, write two tests alongside it:
+
+- calling it outside a transaction returns `ErrNoTransaction`;
+- a transaction that rolls back leaves nothing in the queue — against a real Postgres, not a mock.
+  A mock will happily "roll back" a write it never made, so it proves nothing about the property
+  you care about.
+
+A missing `RunInTx` is not a bug any linter in `.golangci.yml` will find for you.
+
+---
+
+## 7. Receivers, interfaces, and a trap worth memorising
 
 ### Pointer vs value receivers
 
@@ -463,7 +573,7 @@ Add one for every type that exists to satisfy an interface. We have two:
 
 ---
 
-## 7. Naming and package layout
+## 8. Naming and package layout
 
 - **Package names**: short, lowercase, single word, no underscores, no plurals. The package name is
   part of every call site — `core.NewApplication` reads well, `coreutils.NewApplicationHelper`
@@ -518,7 +628,7 @@ a.logger.WarnContext(ctx, "failed to start service",
 
 ---
 
-## 8. Imports
+## 9. Imports
 
 Uber's rule is exactly two groups, separated by one blank line: **standard library first, everything
 else second.** Our own `dockzilla/...` packages are part of "everything else" — they do *not* get a
@@ -550,7 +660,7 @@ Never alias for brevity.
 
 ---
 
-## 9. Configuration
+## 10. Configuration
 
 Config is loaded from `cmd/config.<APP_ENV>.toml` (embedded via `go:embed`) with environment
 variables layered on top, and decoded into structs by koanf tags.
@@ -577,7 +687,7 @@ are always quoted strings (`"10s"`, `"1m30s"`).
 
 ---
 
-## 10. Tests
+## 11. Tests
 
 There are currently **zero tests** in the backend. That's the single biggest gap in the project, and
 new code is the place to start closing it.
@@ -605,6 +715,8 @@ your own diff and ask:
 - [ ] Can any constructor return a non-nil interface holding a nil pointer?
 - [ ] Is every shared field written under `Lock` **and** read under `RLock`? *(no linter finds this
       — only `go test -race` and your own reading do)*
+- [ ] Do the writes that must agree happen inside one `RunInTx`, with a test that proves a rollback
+      leaves nothing behind?
 - [ ] Does every goroutine I started have an owner that waits for it?
 - [ ] Any new `panic` outside of genuine programmer error?
 - [ ] Did I verify new config keys actually load, rather than assuming?

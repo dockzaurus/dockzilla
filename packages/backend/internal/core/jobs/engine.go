@@ -99,7 +99,7 @@ func Register[T any](
 	}
 	uc.registry[kind] = entry{
 		timeout: timeout,
-		run: func(ctx context.Context, payload domain.Payload) error {
+		run: func(ctx context.Context, payload domain.JobsPayload) error {
 			var args T
 			if err := json.Unmarshal(payload, &args); err != nil {
 				return errs.Terminal(fmt.Errorf("decode %s: %w", kind, err))

@@ -27,7 +27,7 @@ func TestRegisterRun(t *testing.T) {
 	errHandler := errors.New("pull image: connection refused")
 
 	type args struct {
-		payload domain.Payload
+		payload domain.JobsPayload
 		handler func(ctx context.Context, args deployArgs) error
 	}
 	tests := []struct {
@@ -39,7 +39,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "success - payload decoded into the handler's type",
 			args: args{
-				payload: domain.Payload(`{"deployment_id":"dep-1","replicas":3}`),
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1","replicas":3}`),
 				handler: func(_ context.Context, got deployArgs) error {
 					want := deployArgs{DeploymentID: "dep-1", Replicas: 3}
 					if got != want {
@@ -53,7 +53,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - handler failure is returned as-is and stays retryable",
 			args: args{
-				payload: domain.Payload(`{"deployment_id":"dep-1"}`),
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
 				handler: func(context.Context, deployArgs) error { return errHandler },
 			},
 			wantErr: "pull image: connection refused",
@@ -61,7 +61,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - undecodable payload is terminal",
 			args: args{
-				payload: domain.Payload(`{"deployment_id":`),
+				payload: domain.JobsPayload(`{"deployment_id":`),
 				handler: func(context.Context, deployArgs) error {
 					t.Error("handler ran on a payload that failed to decode")
 
@@ -74,7 +74,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - payload of the wrong shape is terminal",
 			args: args{
-				payload: domain.Payload(`{"replicas":"three"}`),
+				payload: domain.JobsPayload(`{"replicas":"three"}`),
 				handler: func(context.Context, deployArgs) error {
 					t.Error("handler ran on a payload that failed to decode")
 

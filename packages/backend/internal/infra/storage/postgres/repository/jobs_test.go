@@ -403,7 +403,7 @@ func TestJobs_ConsumeDispatch(t *testing.T) {
 func envelope(args string) string {
 	body, err := json.Marshal(domain.Envelope{
 		ID:   domain.UUID{0x01, 0x02, 0x03},
-		Args: domain.Payload(args),
+		Args: domain.JobsPayload(args),
 	})
 	if err != nil {
 		panic(err)
@@ -418,7 +418,7 @@ func newMessage(kind domain.Kind, payload string) domain.Message {
 			Identifier: domain.UUID{0x01, 0x02, 0x03},
 			Kind:       kind,
 		},
-		Payload: domain.Payload(payload),
+		Payload: domain.JobsPayload(payload),
 	}
 }
 

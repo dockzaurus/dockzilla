@@ -19,37 +19,37 @@ type Sample struct {
 	logger  *slog.Logger
 }
 
-// Option configures a Sample during construction. It is an interface rather
+// SampleOption configures a Sample during construction. It is an interface rather
 // than a bare function type so that options stay comparable in tests and can
 // grow behaviour later without breaking callers.
-type Option interface {
+type SampleOption interface {
 	apply(s *Sample)
 }
 
-// optionFunc adapts a plain function to the Option interface.
-type optionFunc func(*Sample)
+// sampleOptionFunc adapts a plain function to the SampleOption interface.
+type sampleOptionFunc func(*Sample)
 
-func (f optionFunc) apply(s *Sample) { f(s) }
+func (f sampleOptionFunc) apply(s *Sample) { f(s) }
 
 // WithHandler sets the use case the handler delegates to. It is required:
 // NewSample fails when no service is provided.
-func WithHandler(service sample.Handler) Option {
-	return optionFunc(func(s *Sample) {
+func WithHandler(service sample.Handler) SampleOption {
+	return sampleOptionFunc(func(s *Sample) {
 		s.service = service
 	})
 }
 
 // WithLogger sets the structured logger used by the handler. It is required:
 // NewSample fails when no logger is provided.
-func WithLogger(logger *slog.Logger) Option {
-	return optionFunc(func(s *Sample) {
+func WithLogger(logger *slog.Logger) SampleOption {
+	return sampleOptionFunc(func(s *Sample) {
 		s.logger = logger
 	})
 }
 
 // NewSample builds a Sample from opts. It returns an error when a required
 // option is missing, so a caller never receives a partially initialised Sample.
-func NewSample(opts ...Option) (*Sample, error) {
+func NewSample(opts ...SampleOption) (*Sample, error) {
 	s := &Sample{}
 	for _, opt := range opts {
 		opt.apply(s)
