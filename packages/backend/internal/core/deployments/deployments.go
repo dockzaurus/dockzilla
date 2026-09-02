@@ -104,14 +104,28 @@ func (uc *UseCase) Create(
 		)
 	}
 
-	deployment := &domain.Deployment{
-		Identifier: deploymentID,
-		AppID:      appID,
-		ImageRef:   input.ImageRef,
-		Status:     domain.StatusRunning,
+	// Provenance is read from the context, not taken as a parameter: it is set
+	// once by the authentication middleware, so no caller downstream can claim
+	// to be someone else by passing a different argument.
+	actor, err := domain.ActorFromContext(ctx)
+	if err != nil {
+		return domain.UUID{}, fmt.Errorf("read deployment actor: %w", err)
 	}
 
-	jobPayload, err := json.Marshal(input)
+	deployment := &domain.Deployment{
+		Identifier:        deploymentID,
+		AppID:             appID,
+		ImageRef:          input.ImageRef,
+		TriggeredBy:       actor.Channel,
+		TriggeredByUserID: actor.UserID,
+		Status:            domain.StatusQueued,
+	}
+
+	// The payload is built from the deployment, not marshalled from the input.
+	// The input is the client's request shape; the job's arguments are a frozen
+	// contract validated against deployment.run/v1, and the identifier the
+	// handler needs to find its row exists only after the domain generated it.
+	jobPayload, err := json.Marshal(deployArgs(deployment))
 	if err != nil {
 		return domain.UUID{}, fmt.Errorf("failed to marshal deployment job payload: %w", err)
 	}
@@ -137,4 +151,29 @@ func (uc *UseCase) Create(
 	}
 
 	return deployment.Identifier, nil
+}
+
+// deployArgs projects a deployment onto the frozen deployment.run/v1 contract.
+//
+// It exists so the wire payload cannot drift with the domain struct: adding a
+// field to domain.Deployment would silently widen a marshalled struct and fail
+// the schema's additionalProperties:false, whereas this mapping has to be
+// edited on purpose — and editing it means writing DeployArgsV2.
+//
+// A nil TriggeredByUserID stays the empty string, which the omitempty tag
+// drops from the JSON entirely. The schema does not require the field, so a
+// webhook or a rollback produces a valid payload with nobody in it.
+func deployArgs(deployment *domain.Deployment) domain.DeployArgsV1 {
+	args := domain.DeployArgsV1{
+		DeploymentID: deployment.Identifier.String(),
+		AppID:        deployment.AppID.String(),
+		ImageRef:     deployment.ImageRef,
+		TriggeredBy:  string(deployment.TriggeredBy),
+	}
+
+	if deployment.TriggeredByUserID != nil {
+		args.TriggeredByUserID = deployment.TriggeredByUserID.String()
+	}
+
+	return args
 }

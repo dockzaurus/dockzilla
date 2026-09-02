@@ -177,9 +177,13 @@ func run(ctx context.Context) error {
 		return fmt.Errorf("create job engine: %w", err)
 	}
 
-	deploymentRepo := repository.NewDeployment(
+	deploymentRepo, err := repository.NewDeployment(
 		repository.DeploymentWithLogger(logger),
+		repository.DeploymentWithDB(store.DB()),
 	)
+	if err != nil {
+		return fmt.Errorf("create deployment repository: %w", err)
+	}
 
 	deploymentUC := deployments.NewUseCase(
 		deployments.WithLogger(logger),
@@ -204,7 +208,7 @@ func run(ctx context.Context) error {
 		http.WithBasePath("/v1"),
 		http.WithRoutes(
 			api.SchemasRoutes(schemaHandler),
-			api.DeploymentRoutes(deploymentHandler),
+			api.DeploymentRoutes(deploymentHandler, logger),
 		),
 	)
 	if err != nil {

@@ -1,13 +1,11 @@
 package handler
 
 import (
-	"bytes"
-	"errors"
-	"io"
 	"log/slog"
 	"net/http"
 
 	"dockzilla/internal/core/deployments"
+	dockzillahttp "dockzilla/internal/infra/transport/http"
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/pkg/domain"
 	"github.com/gin-gonic/gin"
@@ -59,23 +57,26 @@ func (d *Deployment) Create(c *gin.Context) {
 	d.logger.InfoContext(c, "creating new deployment")
 	var payload domain.CreateDeploymentInput
 	if err := c.ShouldBindBodyWithJSON(&payload); err != nil {
-		d.logger.WarnContext(c, "failed to bind body")
-		c.JSON(http.StatusBadRequest, http.Response{
-			Status:     http.StatusText(http.StatusBadRequest),
-			StatusCode: http.StatusBadRequest,
-			Body:       io.NopCloser(bytes.NewBufferString(err.Error())),
-		})
+		d.logger.DebugContext(c, "failed to bind body", "error", err)
+		dockzillahttp.Abort(c, http.StatusBadRequest, "invalid request body")
 
 		return
 	}
 
-	deploymentID, err := d.svc.Create(c, &payload)
+	// The actor rides on the request context, put there by middleware.RequireAuth.
+	ctx := c.Request.Context()
+
+	deploymentID, err := d.svc.Create(ctx, &payload)
 	if err != nil {
-		d.logger.ErrorContext(c, "failed to create deployment", "error", err.Error())
-		c.JSON(400, errors.New("failed to create deployment"))
+		d.logger.ErrorContext(ctx, "failed to create deployment", "error", err)
+		dockzillahttp.Abort(
+			c,
+			http.StatusInternalServerError,
+			"failed to create deployment",
+		)
 
 		return
 	}
 
-	c.JSON(200, deploymentID)
+	c.JSON(http.StatusCreated, gin.H{"deployment_id": deploymentID.String()})
 }

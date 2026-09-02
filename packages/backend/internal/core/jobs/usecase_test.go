@@ -7,6 +7,7 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/mocks"
 	"dockzilla/pkg/domain"
+	errs "dockzilla/pkg/domain/errors"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -128,6 +129,19 @@ func TestUseCase_Enqueue(t *testing.T) {
 			},
 			insertErr: errInsert,
 			wantErr:   "insert job: no ambient transaction",
+		},
+		{
+			// The wrap must keep errors.Is working on the sentinel: a caller
+			// that cannot tell "you forgot the transaction" apart from any
+			// other insert failure has no way to fix its own bug.
+			name: "error - a missing transaction stays matchable as ErrNoTransaction",
+			args: args{
+				kind:    domain.RunDeployment,
+				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
+			},
+			insertErr: errs.ErrNoTransaction,
+			wantErr: "insert job: jobs repository: insert requires an " +
+				"ambient transaction",
 		},
 	}
 
