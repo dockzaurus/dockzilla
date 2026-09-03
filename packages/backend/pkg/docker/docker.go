@@ -7,13 +7,23 @@ import (
 )
 
 type Storage struct {
-	clientSDK *client.Client
+	clientSDK client.APIClient
 }
 
-func NewStorage() (*Storage, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+func NewStorage(cfg Config) (*Storage, error) {
+	opts := []client.Opt{
+		client.WithAPIVersionNegotiation(),
+	}
+
+	if cfg.Host != "" {
+		opts = append(opts, client.WithHost(cfg.Host))
+	} else {
+		opts = append(opts, client.FromEnv)
+	}
+
+	cli, err := client.NewClientWithOpts(opts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Docker client: %w", err)
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
 	return &Storage{
@@ -21,7 +31,7 @@ func NewStorage() (*Storage, error) {
 	}, nil
 }
 
-func (s *Storage) Client() *client.Client {
+func (s *Storage) Client() client.APIClient {
 	return s.clientSDK
 }
 
