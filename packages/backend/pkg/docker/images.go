@@ -57,8 +57,7 @@ func (a *ImageAdapter) Inventory(ctx context.Context) ([]domain.Image, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	var result []domain.Image
-	result = make([]domain.Image, 0, len(dockerImages))
+	result := make([]domain.Image, 0, len(dockerImages))
 	for _, img := range dockerImages {
 		nativeID := img.ID
 		id, exists := a.digestToID[nativeID]
