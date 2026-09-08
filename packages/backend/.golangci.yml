@@ -208,20 +208,16 @@ linters:
 
   exclusions:
     generated: lax
+    paths:
+      - '_test\.go$'
+      - '(^|/)mocks/'
+      - '(^|/)mock_[^/]*\.go$'
     # NOTE: the "comments" preset is deliberately NOT used — it suppresses the
     # missing-package-comment and doc-comment findings, which are exactly the
     # rules this project cares about.
     presets:
       - std-error-handling
     rules:
-      # Test files get a longer leash: table-driven tests are naturally
-      # repetitive, and their fixtures trip the security and wrapping linters.
-      - path: _test\.go$
-        linters:
-          - gosec
-          - lll
-          - wrapcheck
-
       # The embedded config filesystem must be a package-level var for
       # //go:embed to work; it is read-only, so it is not "mutable global state".
       - path: ^cmd/
@@ -250,3 +246,7 @@ formatters:
 
   exclusions:
     generated: lax
+    paths:
+      - '_test\.go$'
+      - '(^|/)mocks/'
+      - '(^|/)mock_[^/]*\.go$'
