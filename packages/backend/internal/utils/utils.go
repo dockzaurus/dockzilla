@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"dockzilla/pkg/domain"
+
 	"github.com/google/uuid"
 	serviceloader "github.com/zixyos/goloader/service"
 )
@@ -22,6 +23,10 @@ func UUIDParser(uuidStr string) (domain.UUID, error) {
 		return domain.UUID{}, errors.Join(errors.New("failed to parse uuid"), err)
 	}
 	return domain.UUID(parsedUUID), nil
+}
+
+func UUIDStringyfier(uuid domain.UUID) string {
+	return uuid.String()
 }
 
 // ServiceIDGenerator returns a new random identifier in the shape the service

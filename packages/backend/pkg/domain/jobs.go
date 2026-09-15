@@ -28,6 +28,12 @@ type Key string
 // Kind identifies the job type and routes to a registered handler.
 type Kind string
 
+// JobArgs represent the job interface implementation
+// used to guard the job registration handling.
+type JobArgs interface {
+	SchemaID() UUID
+}
+
 const (
 	// RunDeployment pulls an image, creates a container, starts it, waits for
 	// health, swaps the proxy, and stops the old container.

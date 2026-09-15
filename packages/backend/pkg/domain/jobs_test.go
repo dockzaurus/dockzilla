@@ -183,15 +183,15 @@ func TestUUID_String(t *testing.T) {
 		{
 			name: "success - zero value",
 			uuid: domain.UUID{},
-			want: "00000000000000000000000000000000",
+			want: "00000000-0000-0000-0000-000000000000",
 		},
 		{
-			name: "success - hex encoded in order",
+			name: "success - canonical dashed form",
 			uuid: domain.UUID{
 				0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 				0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
 			},
-			want: "0123456789abcdeffedcba9876543210",
+			want: "01234567-89ab-cdef-fedc-ba9876543210",
 		},
 	}
 
@@ -202,4 +202,83 @@ func TestUUID_String(t *testing.T) {
 			require.Equal(t, tt.want, tt.uuid.String())
 		})
 	}
+}
+
+func TestUUID_TextRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	// A UUID crosses the wire as a string, so what MarshalText writes
+	// UnmarshalText must read back byte for byte.
+	want := domain.UUID{
+		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+		0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+	}
+
+	text, err := want.MarshalText()
+	require.NoError(t, err)
+	require.Equal(t, want.String(), string(text))
+
+	var got domain.UUID
+	require.NoError(t, got.UnmarshalText(text))
+	require.Equal(t, want, got)
+}
+
+func TestUUID_UnmarshalText_Invalid(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		text    string
+		wantErr string
+	}{
+		{
+			name:    "error - too short",
+			text:    "0123456789abcdef",
+			wantErr: "want 36",
+		},
+		{
+			name:    "error - dashless",
+			text:    "0123456789abcdeffedcba9876543210ffff",
+			wantErr: "canonical dashed form",
+		},
+		{
+			name:    "error - non-hex digit",
+			text:    "0123456z-89ab-cdef-fedc-ba9876543210",
+			wantErr: "uuid:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var got domain.UUID
+			err := got.UnmarshalText([]byte(tt.text))
+
+			require.ErrorContains(t, err, tt.wantErr)
+			// A rejected identifier must leave the receiver untouched rather
+			// than half written.
+			require.Equal(t, domain.UUID{}, got)
+		})
+	}
+}
+
+func TestUUID_JSONRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	// encoding/json finds MarshalText/UnmarshalText on its own, which is what
+	// lets a job payload carry a domain.UUID as a plain JSON string.
+	type payload struct {
+		ID domain.UUID `json:"id"`
+	}
+
+	want := payload{ID: domain.UUID{0x70, 0x23, 0x21, 0x73}}
+
+	body, err := json.Marshal(want)
+	require.NoError(t, err)
+	require.JSONEq(t, `{"id":"`+want.ID.String()+`"}`, string(body))
+
+	var got payload
+	require.NoError(t, json.Unmarshal(body, &got))
+	require.Equal(t, want, got)
 }
