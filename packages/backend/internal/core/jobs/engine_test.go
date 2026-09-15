@@ -8,6 +8,7 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/mocks"
 	"dockzilla/pkg/domain"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -153,12 +154,9 @@ func TestEngine_ImplementsService(t *testing.T) {
 func TestRegister(t *testing.T) {
 	t.Parallel()
 
-	type deployArgs struct {
-		DeploymentID string `json:"deployment_id"`
-	}
-
 	type args struct {
-		kinds []domain.Kind
+		kinds      []domain.Kind
+		deployArgs domain.DeployArgs
 	}
 	tests := []struct {
 		name      string
@@ -169,12 +167,18 @@ func TestRegister(t *testing.T) {
 			name: "success - one handler per kind",
 			args: args{
 				kinds: []domain.Kind{domain.StartApp, domain.StopApp, domain.RestartApp},
+				deployArgs: domain.DeployArgs{
+					DeploymentIdentifier: testID(),
+				},
 			},
 		},
 		{
 			name: "error - duplicate kind panics",
 			args: args{
 				kinds: []domain.Kind{domain.RunDeployment, domain.RunDeployment},
+				deployArgs: domain.DeployArgs{
+					DeploymentIdentifier: testID(),
+				},
 			},
 			wantPanic: `jobs: duplicate handler for kind "deployment.run"`,
 		},
@@ -189,7 +193,7 @@ func TestRegister(t *testing.T) {
 			register := func() {
 				for _, kind := range tt.args.kinds {
 					jobs.Register(uc, kind, time.Second,
-						func(context.Context, deployArgs) error { return nil },
+						func(context.Context, domain.DeployArgs) error { return nil },
 					)
 				}
 			}

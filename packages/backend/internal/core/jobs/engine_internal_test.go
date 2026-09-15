@@ -7,18 +7,24 @@ package jobs
 
 import (
 	"context"
+	"dockzilla/internal/utils"
 	"errors"
 	"testing"
 	"time"
 
 	"dockzilla/pkg/domain"
 	errs "dockzilla/pkg/domain/errors"
+
 	"github.com/stretchr/testify/require"
 )
 
-type deployArgs struct {
-	DeploymentID string `json:"deployment_id"`
-	Replicas     int    `json:"replicas"`
+func stubID() domain.UUID {
+	res, _ := utils.UUIDParser("70232173-b977-4d0a-aa3b-3a8a52ea0875")
+	return res
+}
+
+func stubIDString() string {
+	return stubID().String()
 }
 
 func TestRegisterRun(t *testing.T) {
@@ -28,7 +34,7 @@ func TestRegisterRun(t *testing.T) {
 
 	type args struct {
 		payload domain.JobsPayload
-		handler func(ctx context.Context, args deployArgs) error
+		handler func(ctx context.Context, args domain.DeployArgs) error
 	}
 	tests := []struct {
 		name         string
@@ -39,9 +45,9 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "success - payload decoded into the handler's type",
 			args: args{
-				payload: domain.JobsPayload(`{"deployment_id":"dep-1","replicas":3}`),
-				handler: func(_ context.Context, got deployArgs) error {
-					want := deployArgs{DeploymentID: "dep-1", Replicas: 3}
+				payload: []byte(`{"deployment_identifier":"` + stubIDString() + `","replicas":3}`),
+				handler: func(_ context.Context, got domain.DeployArgs) error {
+					want := domain.DeployArgs{DeploymentIdentifier: stubID(), Replicas: 3}
 					if got != want {
 						return errors.New("handler received the wrong arguments")
 					}
@@ -53,8 +59,8 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - handler failure is returned as-is and stays retryable",
 			args: args{
-				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
-				handler: func(context.Context, deployArgs) error { return errHandler },
+				payload: []byte(`{"deployment_identifier":"` + stubIDString() + `"}`),
+				handler: func(context.Context, domain.DeployArgs) error { return errHandler },
 			},
 			wantErr: "pull image: connection refused",
 		},
@@ -62,7 +68,7 @@ func TestRegisterRun(t *testing.T) {
 			name: "error - undecodable payload is terminal",
 			args: args{
 				payload: domain.JobsPayload(`{"deployment_id":`),
-				handler: func(context.Context, deployArgs) error {
+				handler: func(context.Context, domain.DeployArgs) error {
 					t.Error("handler ran on a payload that failed to decode")
 
 					return nil
@@ -75,7 +81,7 @@ func TestRegisterRun(t *testing.T) {
 			name: "error - payload of the wrong shape is terminal",
 			args: args{
 				payload: domain.JobsPayload(`{"replicas":"three"}`),
-				handler: func(context.Context, deployArgs) error {
+				handler: func(context.Context, domain.DeployArgs) error {
 					t.Error("handler ran on a payload that failed to decode")
 
 					return nil

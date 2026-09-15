@@ -88,7 +88,7 @@ func (e *Engine) Name() string {
 
 // Register binds kind to a typed handler with a timeout. The handler receives
 // the unmarshalled payload as T. It panics when kind is already registered.
-func Register[T any](
+func Register[T domain.JobArgs](
 	uc *UseCase,
 	kind domain.Kind,
 	timeout time.Duration,
