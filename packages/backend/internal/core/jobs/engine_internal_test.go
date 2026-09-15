@@ -23,10 +23,6 @@ func stubID() domain.UUID {
 	return res
 }
 
-func stubIDString() string {
-	return stubID().String()
-}
-
 func TestRegisterRun(t *testing.T) {
 	t.Parallel()
 
@@ -45,7 +41,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "success - payload decoded into the handler's type",
 			args: args{
-				payload: []byte(`{"deployment_identifier":"` + stubIDString() + `","replicas":3}`),
+				payload: domain.JobsPayload(`{"deployment_identifier":"` + stubID().String() + `","replicas":3}`),
 				handler: func(_ context.Context, got domain.DeployArgs) error {
 					want := domain.DeployArgs{DeploymentIdentifier: stubID(), Replicas: 3}
 					if got != want {
@@ -59,7 +55,7 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - handler failure is returned as-is and stays retryable",
 			args: args{
-				payload: []byte(`{"deployment_identifier":"` + stubIDString() + `"}`),
+				payload: domain.JobsPayload(`{"deployment_identifier":"` + stubID().String() + `"}`),
 				handler: func(context.Context, domain.DeployArgs) error { return errHandler },
 			},
 			wantErr: "pull image: connection refused",
