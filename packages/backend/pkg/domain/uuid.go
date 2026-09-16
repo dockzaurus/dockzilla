@@ -64,3 +64,17 @@ func ParseUUID(text string) (UUID, error) {
 
 	return uuid, nil
 }
+
+// UnmarshalText implements encoding.TextUnmarshaler, reading back what
+// MarshalText writes. Living on the identifier rather than on each payload
+// struct is what keeps every job argument decoding without boilerplate.
+func (u *UUID) UnmarshalText(text []byte) error {
+	parsed, err := ParseUUID(string(text))
+	if err != nil {
+		return err
+	}
+
+	*u = parsed
+
+	return nil
+}
