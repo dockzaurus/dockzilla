@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	errs "dockzilla/pkg/domain/errors"
@@ -54,6 +55,27 @@ const (
 type Envelope struct {
 	ID   UUID        `json:"id"`
 	Args JobsPayload `json:"args"`
+}
+
+// UnmarshalJSON decodes an Envelope and parses its UUID identifier.
+func (e *Envelope) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		ID   string      `json:"id"`
+		Args JobsPayload `json:"args"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("unmarshal envelope: %w", err)
+	}
+
+	id, err := ParseUUID(raw.ID)
+	if err != nil {
+		return fmt.Errorf("parse envelope ID: %w", err)
+	}
+
+	e.ID = id
+	e.Args = raw.Args
+
+	return nil
 }
 
 // AllKinds returns every job kind the engine knows about. Substrates that

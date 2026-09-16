@@ -3,6 +3,7 @@ package domain_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -172,6 +173,14 @@ func TestEnvelope_RoundTrip(t *testing.T) {
 	require.JSONEq(t, string(want.Args), string(got.Args))
 }
 
+func TestUUID_ValueSatisfiesStringer(t *testing.T) {
+	t.Parallel()
+
+	// UUID must implement fmt.Stringer as a value so logging a UUID value
+	// renders its canonical form rather than its underlying byte array.
+	require.Implements(t, (*fmt.Stringer)(nil), domain.UUID{})
+}
+
 func TestUUID_String(t *testing.T) {
 	t.Parallel()
 
@@ -207,8 +216,8 @@ func TestUUID_String(t *testing.T) {
 func TestUUID_TextRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	// A UUID crosses the wire as a string, so what MarshalText writes
-	// UnmarshalText must read back byte for byte.
+	// A UUID crosses the wire as a string, so ParseUUID must read back what
+	// MarshalText writes byte for byte.
 	want := domain.UUID{
 		0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
 		0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
@@ -218,12 +227,12 @@ func TestUUID_TextRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want.String(), string(text))
 
-	var got domain.UUID
-	require.NoError(t, got.UnmarshalText(text))
+	got, err := domain.ParseUUID(string(text))
+	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
 
-func TestUUID_UnmarshalText_Invalid(t *testing.T) {
+func TestUUID_Parse_Invalid(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -252,22 +261,30 @@ func TestUUID_UnmarshalText_Invalid(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			var got domain.UUID
-			err := got.UnmarshalText([]byte(tt.text))
+			got, err := domain.ParseUUID(tt.text)
 
 			require.ErrorContains(t, err, tt.wantErr)
-			// A rejected identifier must leave the receiver untouched rather
-			// than half written.
 			require.Equal(t, domain.UUID{}, got)
 		})
 	}
 }
 
-func TestUUID_JSONRoundTrip(t *testing.T) {
+func TestDeployArgs_JSONUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	// encoding/json finds MarshalText/UnmarshalText on its own, which is what
-	// lets a job payload carry a domain.UUID as a plain JSON string.
+	id := domain.UUID{0x70, 0x23, 0x21, 0x73}
+	body := []byte(`{"deployment_identifier":"` + id.String() + `","replicas":3}`)
+
+	var got domain.DeployArgs
+	require.NoError(t, json.Unmarshal(body, &got))
+	require.Equal(t, id, got.DeploymentIdentifier)
+	require.Equal(t, 3, got.Replicas)
+}
+
+func TestUUID_JSONMarshal(t *testing.T) {
+	t.Parallel()
+
+	// encoding/json finds MarshalText, so a UUID in a payload is a string.
 	type payload struct {
 		ID domain.UUID `json:"id"`
 	}
@@ -277,8 +294,4 @@ func TestUUID_JSONRoundTrip(t *testing.T) {
 	body, err := json.Marshal(want)
 	require.NoError(t, err)
 	require.JSONEq(t, `{"id":"`+want.ID.String()+`"}`, string(body))
-
-	var got payload
-	require.NoError(t, json.Unmarshal(body, &got))
-	require.Equal(t, want, got)
 }

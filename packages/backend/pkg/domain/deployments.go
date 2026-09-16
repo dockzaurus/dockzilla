@@ -1,5 +1,10 @@
 package domain
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // Status is where a deployment has got to. The values are the labels of the
 // deployment_status enum in 00001_init-db.up.sql, so a Status can be written
 // to the column with a plain string conversion and no translation table.
@@ -65,6 +70,27 @@ type CreateDeploymentInput struct {
 type DeployArgs struct {
 	DeploymentIdentifier UUID `json:"deployment_identifier"`
 	Replicas             int  `json:"replicas"`
+}
+
+// UnmarshalJSON decodes DeployArgs and parses its deployment identifier.
+func (d *DeployArgs) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		DeploymentIdentifier string `json:"deployment_identifier"`
+		Replicas             int    `json:"replicas"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("unmarshal deployment arguments: %w", err)
+	}
+
+	id, err := ParseUUID(raw.DeploymentIdentifier)
+	if err != nil {
+		return fmt.Errorf("parse deployment identifier: %w", err)
+	}
+
+	d.DeploymentIdentifier = id
+	d.Replicas = raw.Replicas
+
+	return nil
 }
 
 // SchemaID returns the actual DeploymentIdentifier.

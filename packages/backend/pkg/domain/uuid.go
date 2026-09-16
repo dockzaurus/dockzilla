@@ -41,15 +41,13 @@ func (u UUID) MarshalText() ([]byte, error) {
 	return []byte(u.String()), nil
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler, reading back exactly what
-// MarshalText writes. A malformed identifier is an error rather than a partial
-// value, so a caller never receives half a UUID.
-func (u *UUID) UnmarshalText(text []byte) error {
+// ParseUUID parses a UUID in canonical dashed form.
+func ParseUUID(text string) (UUID, error) {
 	if len(text) != 36 {
-		return fmt.Errorf("uuid: got %d bytes, want 36", len(text))
+		return UUID{}, fmt.Errorf("uuid: got %d bytes, want 36", len(text))
 	}
 	if text[8] != '-' || text[13] != '-' || text[18] != '-' || text[23] != '-' {
-		return fmt.Errorf("uuid: %q is not the canonical dashed form", text)
+		return UUID{}, fmt.Errorf("uuid: %q is not the canonical dashed form", text)
 	}
 
 	var buf [32]byte
@@ -59,14 +57,10 @@ func (u *UUID) UnmarshalText(text []byte) error {
 	copy(buf[16:20], text[19:23])
 	copy(buf[20:32], text[24:36])
 
-	// Decoding into scratch keeps a rejected identifier from leaving the
-	// receiver half written.
-	var out UUID
-	if _, err := hex.Decode(out[:], buf[:]); err != nil {
-		return fmt.Errorf("uuid: %w", err)
+	var uuid UUID
+	if _, err := hex.Decode(uuid[:], buf[:]); err != nil {
+		return UUID{}, fmt.Errorf("uuid: %w", err)
 	}
 
-	*u = out
-
-	return nil
+	return uuid, nil
 }
