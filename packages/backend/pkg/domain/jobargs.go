@@ -60,3 +60,26 @@ type RestartAppArgsV1 struct {
 	// before it is killed. Zero means the engine's own default.
 	TimeoutSeconds int `json:"timeout_seconds,omitempty" jsonschema:"minimum=0,maximum=3600"`
 }
+
+// SchemaRef returns the contract this payload was generated from. The methods
+// below carry no fields, so they do not affect the generated documents.
+
+// SchemaRef identifies DeployArgsV1 as the v1 contract of deployment.run.
+func (DeployArgsV1) SchemaRef() SchemaRef {
+	return SchemaRef{Kind: RunDeployment, Version: SchemaV1}
+}
+
+// SchemaRef identifies StartAppArgsV1 as the v1 contract of app.start.
+func (StartAppArgsV1) SchemaRef() SchemaRef {
+	return SchemaRef{Kind: StartApp, Version: SchemaV1}
+}
+
+// SchemaRef identifies StopAppArgsV1 as the v1 contract of app.stop.
+func (StopAppArgsV1) SchemaRef() SchemaRef {
+	return SchemaRef{Kind: StopApp, Version: SchemaV1}
+}
+
+// SchemaRef identifies RestartAppArgsV1 as the v1 contract of app.restart.
+func (RestartAppArgsV1) SchemaRef() SchemaRef {
+	return SchemaRef{Kind: RestartApp, Version: SchemaV1}
+}

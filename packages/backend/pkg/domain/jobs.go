@@ -3,7 +3,6 @@ package domain
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	errs "dockzilla/pkg/domain/errors"
@@ -29,10 +28,12 @@ type Key string
 // Kind identifies the job type and routes to a registered handler.
 type Kind string
 
-// JobArgs represent the job interface implementation
-// used to guard the job registration handling.
+// JobArgs is the contract every job payload declares. Returning its own
+// SchemaRef is what lets Register check at startup that a handler is bound to
+// the kind its argument type was generated for, and ties the Go type to the
+// published schema it is validated against.
 type JobArgs interface {
-	SchemaID() UUID
+	SchemaRef() SchemaRef
 }
 
 const (
@@ -55,27 +56,6 @@ const (
 type Envelope struct {
 	ID   UUID        `json:"id"`
 	Args JobsPayload `json:"args"`
-}
-
-// UnmarshalJSON decodes an Envelope and parses its UUID identifier.
-func (e *Envelope) UnmarshalJSON(data []byte) error {
-	var raw struct {
-		ID   string      `json:"id"`
-		Args JobsPayload `json:"args"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return fmt.Errorf("unmarshal envelope: %w", err)
-	}
-
-	id, err := ParseUUID(raw.ID)
-	if err != nil {
-		return fmt.Errorf("parse envelope ID: %w", err)
-	}
-
-	e.ID = id
-	e.Args = raw.Args
-
-	return nil
 }
 
 // AllKinds returns every job kind the engine knows about. Substrates that

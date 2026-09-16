@@ -60,14 +60,3 @@ type CreateDeploymentInput struct {
 	ImageRef string `json:"image_ref"`
 	Status   string `json:"status"`
 }
-
-// DeployArgs represent the Job argument implementing the domain.JobArgs.
-type DeployArgs struct {
-	DeploymentIdentifier UUID `json:"deployment_identifier"`
-	Replicas             int  `json:"replicas"`
-}
-
-// SchemaID returns the actual DeploymentIdentifier.
-func (d DeployArgs) SchemaID() UUID {
-	return d.DeploymentIdentifier
-}

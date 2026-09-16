@@ -269,16 +269,21 @@ func TestUUID_Parse_Invalid(t *testing.T) {
 	}
 }
 
-func TestDeployArgs_JSONUnmarshal(t *testing.T) {
+func TestUUID_JSONUnmarshal(t *testing.T) {
 	t.Parallel()
 
-	id := domain.UUID{0x70, 0x23, 0x21, 0x73}
-	body := []byte(`{"deployment_identifier":"` + id.String() + `","replicas":3}`)
+	// The decode half of TestUUID_JSONMarshal: encoding/json finds
+	// UnmarshalText, so a UUID field reads back from a plain JSON string
+	// without the payload struct needing a decoder of its own.
+	type payload struct {
+		ID domain.UUID `json:"id"`
+	}
 
-	var got domain.DeployArgs
-	require.NoError(t, json.Unmarshal(body, &got))
-	require.Equal(t, id, got.DeploymentIdentifier)
-	require.Equal(t, 3, got.Replicas)
+	want := domain.UUID{0x70, 0x23, 0x21, 0x73}
+
+	var got payload
+	require.NoError(t, json.Unmarshal([]byte(`{"id":"`+want.String()+`"}`), &got))
+	require.Equal(t, want, got.ID)
 }
 
 func TestUUID_JSONMarshal(t *testing.T) {
