@@ -22,6 +22,7 @@ import (
 	"dockzilla/internal/infra/transport/http/api"
 	"dockzilla/internal/infra/transport/http/handler"
 	"dockzilla/internal/utils"
+	"dockzilla/pkg/domain"
 	"dockzilla/pkg/queue/pgqueue"
 	"github.com/NikolayS/pgque-go"
 	"github.com/zixyos/giniservice/telemetry"
@@ -188,7 +189,7 @@ func run(ctx context.Context) error {
 	deploymentUC := deployments.NewUseCase(
 		deployments.WithLogger(logger),
 		deployments.WithGenerator(utils.Generator),
-		deployments.WithUUIDParser(utils.UUIDParser),
+		deployments.WithUUIDParser(domain.ParseUUID),
 		deployments.WithRepo(deploymentRepo),
 		deployments.WithJobs(jobUC),
 		deployments.WithTransactor(transactor),

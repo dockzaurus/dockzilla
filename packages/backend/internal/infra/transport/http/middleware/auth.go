@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	dockzillahttp "dockzilla/internal/infra/transport/http"
-	"dockzilla/internal/utils"
 	"dockzilla/pkg/domain"
 	"github.com/gin-gonic/gin"
 )
@@ -47,7 +46,7 @@ type Auth interface {
 // the answer. When it fails the routes behind this middleware refuse instead
 // of the process dying at whichever request arrives first.
 func RequireAuth(_ Auth, logger *slog.Logger) gin.HandlerFunc {
-	userID, err := utils.UUIDParser(devUserID)
+	userID, err := domain.ParseUUID(devUserID)
 	if err != nil {
 		return dockzillahttp.Misconfigured(logger, err)
 	}
