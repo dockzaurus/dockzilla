@@ -7,24 +7,28 @@ package images
 import (
 	"context"
 	"crypto/sha256"
-	"dockzilla/internal/utils"
 	"fmt"
 	"io"
 	"sync"
 	"time"
+
+	"dockzilla/internal/utils"
 )
 
+// FakeStore is a fake implementation of the ImageStore interface.
 type FakeStore struct {
-	lock sync.RWMutex
+	lock       sync.RWMutex
 	digestToID map[string]ImageID
-	images map[ImageID]Image
+	images     map[ImageID]Image
 }
 
+// Inventory returns a list of all images in the fake store.
 func (f *FakeStore) Inventory(ctx context.Context) ([]Image, error) {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 
 	var images []Image
+	images = make([]Image, 0, len(f.images))
 	for _, image := range f.images {
 		images = append(images, image)
 	}
@@ -32,14 +36,13 @@ func (f *FakeStore) Inventory(ctx context.Context) ([]Image, error) {
 	return images, nil
 }
 
-
-
+// Load simulates loading an image from a tarball and returns a fake digest.
 func (f *FakeStore) Load(ctx context.Context, r io.Reader) (digest string, err error) {
 	hash := sha256.New()
 
 	n, err := io.Copy(hash, r)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read image data: %w", err)
 	}
 
 	digest = fmt.Sprintf("sha256:%x", hash.Sum(nil))
@@ -54,8 +57,8 @@ func (f *FakeStore) Load(ctx context.Context, r io.Reader) (digest string, err e
 	}
 
 	f.images[id] = Image{
-		Digest: digest,
-		ID: id,
+		Digest:    digest,
+		ID:        id,
 		SizeBytes: n,
 		CreatedAt: time.Now(),
 	}
@@ -63,15 +66,17 @@ func (f *FakeStore) Load(ctx context.Context, r io.Reader) (digest string, err e
 	return digest, nil
 }
 
-
-func (f *FakeStore) Resolve(ctx context.Context, digest string) (ImageID, bool, error) {
+// Resolve returns the ImageID associated with the given digest, if it exists.
+func (f *FakeStore) Resolve(ctx context.Context, digest string) (
+	id ImageID, exists bool, err error) {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 
-	id, exists := f.digestToID[digest]
+	id, exists = f.digestToID[digest]
 	return id, exists, nil
 }
 
+// Remove simulates removing an image by its ImageID.
 func (f *FakeStore) Remove(ctx context.Context, id ImageID) (reclaimed int64, err error) {
 	f.lock.Lock()
 	defer f.lock.Unlock()

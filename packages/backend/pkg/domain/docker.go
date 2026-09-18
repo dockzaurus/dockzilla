@@ -5,14 +5,17 @@ import (
 	"io"
 )
 
+// Image represents a Docker image with its metadata.
 type Image struct {
-	Digest string
-	ID ImageID
+	Digest    string
+	ID        ImageID
 	SizeBytes int64
 }
 
+// ImageID is a unique identifier for an image, represented as a UUID.
 type ImageID = UUID
 
+// DockerImageAPI defines the interface for interacting with Docker images.
 type DockerImageAPI interface {
 	Inventory(ctx context.Context) ([]Image, error)
 	Remove(ctx context.Context, id ImageID) (int64, error)
