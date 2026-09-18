@@ -13,12 +13,19 @@ import (
 
 	"dockzilla/pkg/domain"
 	errs "dockzilla/pkg/domain/errors"
+
 	"github.com/stretchr/testify/require"
 )
 
-type deployArgs struct {
-	DeploymentID string `json:"deployment_id"`
-	Replicas     int    `json:"replicas"`
+// stubDeployment is the payload the tests decode, in the shape the published
+// deployment.run/v1 contract describes.
+func stubDeployment() domain.DeployArgsV1 {
+	return domain.DeployArgsV1{
+		DeploymentID: "70232173-b977-4d0a-aa3b-3a8a52ea0875",
+		AppID:        "3f2a1c4e-8b6d-4f21-9c07-5d8e2a1b3c49",
+		ImageRef:     "ghcr.io/acme/api:1.4.2",
+		TriggeredBy:  "api",
+	}
 }
 
 func TestRegisterRun(t *testing.T) {
@@ -28,7 +35,7 @@ func TestRegisterRun(t *testing.T) {
 
 	type args struct {
 		payload domain.JobsPayload
-		handler func(ctx context.Context, args deployArgs) error
+		handler func(ctx context.Context, args domain.DeployArgsV1) error
 	}
 	tests := []struct {
 		name         string
@@ -39,10 +46,14 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "success - payload decoded into the handler's type",
 			args: args{
-				payload: domain.JobsPayload(`{"deployment_id":"dep-1","replicas":3}`),
-				handler: func(_ context.Context, got deployArgs) error {
-					want := deployArgs{DeploymentID: "dep-1", Replicas: 3}
-					if got != want {
+				payload: domain.JobsPayload(`{
+					"deployment_id":"70232173-b977-4d0a-aa3b-3a8a52ea0875",
+					"app_id":"3f2a1c4e-8b6d-4f21-9c07-5d8e2a1b3c49",
+					"image_ref":"ghcr.io/acme/api:1.4.2",
+					"triggered_by":"api"
+				}`),
+				handler: func(_ context.Context, got domain.DeployArgsV1) error {
+					if got != stubDeployment() {
 						return errors.New("handler received the wrong arguments")
 					}
 
@@ -53,8 +64,8 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - handler failure is returned as-is and stays retryable",
 			args: args{
-				payload: domain.JobsPayload(`{"deployment_id":"dep-1"}`),
-				handler: func(context.Context, deployArgs) error { return errHandler },
+				payload: domain.JobsPayload(`{"deployment_id":"70232173-b977-4d0a-aa3b-3a8a52ea0875"}`),
+				handler: func(context.Context, domain.DeployArgsV1) error { return errHandler },
 			},
 			wantErr: "pull image: connection refused",
 		},
@@ -62,7 +73,7 @@ func TestRegisterRun(t *testing.T) {
 			name: "error - undecodable payload is terminal",
 			args: args{
 				payload: domain.JobsPayload(`{"deployment_id":`),
-				handler: func(context.Context, deployArgs) error {
+				handler: func(context.Context, domain.DeployArgsV1) error {
 					t.Error("handler ran on a payload that failed to decode")
 
 					return nil
@@ -74,8 +85,8 @@ func TestRegisterRun(t *testing.T) {
 		{
 			name: "error - payload of the wrong shape is terminal",
 			args: args{
-				payload: domain.JobsPayload(`{"replicas":"three"}`),
-				handler: func(context.Context, deployArgs) error {
+				payload: domain.JobsPayload(`{"deployment_id":42}`),
+				handler: func(context.Context, domain.DeployArgsV1) error {
 					t.Error("handler ran on a payload that failed to decode")
 
 					return nil
@@ -111,4 +122,28 @@ func TestRegisterRun(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestRegister_InstallsOneHandlerPerKind(t *testing.T) {
+	t.Parallel()
+
+	// A kind with no handler can never be consumed, so every kind the engine
+	// advertises must be bindable to the contract generated for it.
+	uc := &UseCase{registry: make(map[domain.Kind]entry)}
+
+	Register(uc, domain.RunDeployment, time.Second,
+		func(context.Context, domain.DeployArgsV1) error { return nil })
+	Register(uc, domain.StartApp, time.Second,
+		func(context.Context, domain.StartAppArgsV1) error { return nil })
+	Register(uc, domain.StopApp, time.Second,
+		func(context.Context, domain.StopAppArgsV1) error { return nil })
+	Register(uc, domain.RestartApp, time.Second,
+		func(context.Context, domain.RestartAppArgsV1) error { return nil })
+
+	for _, kind := range domain.AllKinds() {
+		_, ok := uc.registry[kind]
+		require.True(t, ok, "no handler registered for kind %q", kind)
+	}
+
+	require.Len(t, uc.registry, len(domain.AllKinds()))
 }

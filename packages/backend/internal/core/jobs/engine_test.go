@@ -8,6 +8,7 @@ import (
 	"dockzilla/internal/core/jobs"
 	"dockzilla/internal/core/jobs/mocks"
 	"dockzilla/pkg/domain"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -153,12 +154,10 @@ func TestEngine_ImplementsService(t *testing.T) {
 func TestRegister(t *testing.T) {
 	t.Parallel()
 
-	type deployArgs struct {
-		DeploymentID string `json:"deployment_id"`
-	}
-
 	type args struct {
-		kinds []domain.Kind
+		// register is a closure rather than a table of kinds because each kind
+		// has its own payload type, which is the property under test.
+		register func(uc *jobs.UseCase)
 	}
 	tests := []struct {
 		name      string
@@ -166,17 +165,45 @@ func TestRegister(t *testing.T) {
 		wantPanic string
 	}{
 		{
-			name: "success - one handler per kind",
+			name: "success - one handler per kind, each with its own contract",
 			args: args{
-				kinds: []domain.Kind{domain.StartApp, domain.StopApp, domain.RestartApp},
+				register: func(uc *jobs.UseCase) {
+					jobs.Register(uc, domain.RunDeployment, time.Second,
+						func(context.Context, domain.DeployArgsV1) error { return nil })
+					jobs.Register(uc, domain.StartApp, time.Second,
+						func(context.Context, domain.StartAppArgsV1) error { return nil })
+					jobs.Register(uc, domain.StopApp, time.Second,
+						func(context.Context, domain.StopAppArgsV1) error { return nil })
+					jobs.Register(uc, domain.RestartApp, time.Second,
+						func(context.Context, domain.RestartAppArgsV1) error { return nil })
+				},
 			},
 		},
 		{
 			name: "error - duplicate kind panics",
 			args: args{
-				kinds: []domain.Kind{domain.RunDeployment, domain.RunDeployment},
+				register: func(uc *jobs.UseCase) {
+					jobs.Register(uc, domain.RunDeployment, time.Second,
+						func(context.Context, domain.DeployArgsV1) error { return nil })
+					jobs.Register(uc, domain.RunDeployment, time.Second,
+						func(context.Context, domain.DeployArgsV1) error { return nil })
+				},
 			},
 			wantPanic: `jobs: duplicate handler for kind "deployment.run"`,
+		},
+		{
+			// Binding a handler to the wrong kind is the mistake the type
+			// guard exists to catch: without it the payload decodes into a
+			// zero value and the job runs on nothing.
+			name: "error - kind disagrees with the payload's contract",
+			args: args{
+				register: func(uc *jobs.UseCase) {
+					jobs.Register(uc, domain.StartApp, time.Second,
+						func(context.Context, domain.DeployArgsV1) error { return nil })
+				},
+			},
+			wantPanic: `jobs: handler for kind "app.start" takes domain.DeployArgsV1, ` +
+				`which declares kind "deployment.run"`,
 		},
 	}
 
@@ -186,21 +213,13 @@ func TestRegister(t *testing.T) {
 
 			uc := newUseCase(t, mocks.NewMockRepository(t))
 
-			register := func() {
-				for _, kind := range tt.args.kinds {
-					jobs.Register(uc, kind, time.Second,
-						func(context.Context, deployArgs) error { return nil },
-					)
-				}
-			}
-
 			if tt.wantPanic != "" {
-				require.PanicsWithValue(t, tt.wantPanic, register)
+				require.PanicsWithValue(t, tt.wantPanic, func() { tt.args.register(uc) })
 
 				return
 			}
 
-			require.NotPanics(t, register)
+			require.NotPanics(t, func() { tt.args.register(uc) })
 		})
 	}
 }

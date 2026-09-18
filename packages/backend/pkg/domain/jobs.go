@@ -28,6 +28,14 @@ type Key string
 // Kind identifies the job type and routes to a registered handler.
 type Kind string
 
+// JobArgs is the contract every job payload declares. Returning its own
+// SchemaRef is what lets Register check at startup that a handler is bound to
+// the kind its argument type was generated for, and ties the Go type to the
+// published schema it is validated against.
+type JobArgs interface {
+	SchemaRef() SchemaRef
+}
+
 const (
 	// RunDeployment pulls an image, creates a container, starts it, waits for
 	// health, swaps the proxy, and stops the old container.

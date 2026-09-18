@@ -87,8 +87,10 @@ func (e *Engine) Name() string {
 }
 
 // Register binds kind to a typed handler with a timeout. The handler receives
-// the unmarshalled payload as T. It panics when kind is already registered.
-func Register[T any](
+// the unmarshalled payload as T. It panics when kind is already registered, or
+// when kind disagrees with the contract T declares — both are wiring mistakes
+// that must surface at boot rather than when a job lands.
+func Register[T domain.JobArgs](
 	uc *UseCase,
 	kind domain.Kind,
 	timeout time.Duration,
@@ -97,6 +99,15 @@ func Register[T any](
 	if _, dup := uc.registry[kind]; dup {
 		panic(fmt.Sprintf("jobs: duplicate handler for kind %q", kind))
 	}
+
+	var zero T
+	if declared := zero.SchemaRef().Kind; declared != kind {
+		panic(fmt.Sprintf(
+			"jobs: handler for kind %q takes %T, which declares kind %q",
+			kind, zero, declared,
+		))
+	}
+
 	uc.registry[kind] = entry{
 		timeout: timeout,
 		run: func(ctx context.Context, payload domain.JobsPayload) error {
